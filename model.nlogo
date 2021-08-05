@@ -12,6 +12,7 @@ globals[
   credenceTypeA
   credenceTypeB
   meanDistance
+  utilityMatrix
 ]
 
 to setup
@@ -22,9 +23,25 @@ to setup
 end
 
 to go
-  prepareRound
+  prepareGame
+  playGame
   tick
 end
+
+to playGame
+  ask patches [
+    let participants turtles-here
+    ask participants [
+      ;playRound1
+      ;playRound2
+      ;playRound3
+    ]
+
+  ]
+
+
+end
+
 
 
 to setupAgents
@@ -59,7 +76,7 @@ to setupAgents
 end
 
 to setupWorld
-  resize-world -5 5 -5 5 ;only few patches, s.t. people can properly be sorted into games
+  resize-world (0 -(worldDimensions / 2)) (worldDimensions / 2) (0 -(worldDimensions / 2)) (worldDimensions / 2) ;only few patches, s.t. people can properly be sorted into games
   set-patch-size 50
   ask patches [ ;checkerboard coloring
     ifelse (((pxcor + pycor) mod 2) = 0)[
@@ -77,7 +94,7 @@ to setupWorld
 end
 
 
-to prepareRound ;agents move, group credences and distance from the truth are updated and printed
+to prepareGame ;agents move, group credences and distance from the truth are updated and printed
   set meanDistance 0
   set credenceTypeA 0
   set credenceTypeB 0
@@ -137,7 +154,7 @@ countTypeA
 countTypeA
 10
 200
-50.0
+100.0
 10
 1
 NIL
@@ -169,7 +186,7 @@ countTypeB
 countTypeB
 10
 200
-50.0
+100.0
 10
 1
 NIL
@@ -259,6 +276,87 @@ PENS
 "default" 1.0 0 -16777216 true "" "plot objectiveChance"
 "Group A" 1.0 0 -955883 true "" "plot credenceTypeA"
 "Group B" 1.0 0 -13345367 true "" "plot credenceTypeB"
+
+SWITCH
+6
+689
+238
+722
+employLearningFunction
+employLearningFunction
+1
+1
+-1000
+
+SLIDER
+1003
+60
+1183
+93
+penaltyPerPerson
+penaltyPerPerson
+-10
+0
+-2.0
+1
+1
+NIL
+HORIZONTAL
+
+TEXTBOX
+980
+27
+1238
+54
+Utility Function Values
+20
+0.0
+1
+
+SLIDER
+978
+101
+1207
+134
+rewardSpeakingYourMind
+rewardSpeakingYourMind
+0
+10
+2.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+1003
+139
+1191
+172
+penaltySmothering
+penaltySmothering
+-10
+0
+-10.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+6
+726
+178
+759
+worldDimensions
+worldDimensions
+4
+10
+10.0
+2
+1
+NIL
+HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?
