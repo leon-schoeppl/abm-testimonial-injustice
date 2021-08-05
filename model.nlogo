@@ -7,10 +7,11 @@ people-own[
  ]
 
 globals[
-  objectiveTruth
+  objectiveChance
   countPeople
   credenceTypeA
   credenceTypeB
+  meanDistance
 ]
 
 to setup
@@ -35,10 +36,10 @@ to setupAgents
     set xcor random-xcor
     set ycor random-ycor
     set heading random 360
-    set credence objectiveTruth * biasTypeA ;later this bias might be featured in experiments
+    set credence objectiveChance + random-float 1 * biasTypeA ;later this bias might be featured in experiments
     set quietenTendency 0 ;add type specific slider with reasonable values later
     set groupType "A"
-    set color yellow
+    set color orange
     set shape "person"
     set size 0.5
   ]
@@ -47,7 +48,7 @@ to setupAgents
     set xcor random-xcor
     set ycor random-ycor
     set heading random 360
-    set credence objectiveTruth * biasTypeA ;later this bias might be featured in experiments
+    set credence objectiveChance + random-float 1 * biasTypeB ;later this bias might be featured in experiments
     set quietenTendency 0 ;add type specific slider with reasonable values later
     set groupType "B"
     set color blue
@@ -58,30 +59,46 @@ to setupAgents
 end
 
 to setupWorld
-  resize-world -5 5 -5 5
+  resize-world -5 5 -5 5 ;only few patches, s.t. people can properly be sorted into games
   set-patch-size 50
-  set objectiveTruth random-float 1
+  ask patches [ ;checkerboard coloring
+    ifelse (((pxcor + pycor) mod 2) = 0)[
+      set pcolor grey
+    ][
+      set pcolor white
+    ]
+  ]
+  set objectiveChance random-float 1
+  print "--------------------------------------------------------------------------------------"
+  print "--------------------------------------------------------------------------------------"
   print "--------------------------------------------------------------------------------------"
   print(word "New simulation started @ "date-and-time)
-  print(word "In this simulation the objective value of the proposition is " objectiveTruth ".")
+  print(word "In this simulation the objective value of the proposition is " objectiveChance ".")
 end
 
 
-to prepareRound
+to prepareRound ;agents move, group credences and distance from the truth are updated and printed
+  set meanDistance 0
   set credenceTypeA 0
   set credenceTypeB 0
   ask people[
+    if credence > 1 [set credence 1] ;just in case
+    if credence < 0 [set credence 0]
     forward random 10
     left (random 10) - 5
+    set meanDistance meanDistance + abs (objectiveChance - credence)
     ifelse groupType = "A" [
       set credenceTypeA credenceTypeA + credence
     ][
       set credenceTypeB credenceTypeB + credence
     ]
   ]
+  set meanDistance meanDistance / countPeople
   set credenceTypeA credenceTypeA / countTypeA
   set credenceTypeB credenceTypeB / countTypeB
-  print(word "At the start of round " ticks " the average credence in P was " credenceTypeA " for group A, and " credenceTypeB " for group B.")
+  print "--------------------------------------------------------------------------------------"
+  print(word "At the start of round " ticks " the average credence in P is " credenceTypeA " for group A, and " credenceTypeB " for group B.")
+  print(word "The mean distance from the truth for the whole population of agents is currently " meanDistance ".")
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
@@ -167,7 +184,7 @@ biasTypeA
 biasTypeA
 -1
 1
-0.1
+1.0
 0.1
 1
 NIL
@@ -182,7 +199,7 @@ biasTypeB
 biasTypeB
 -1
 1
--0.1
+-1.0
 0.1
 1
 NIL
@@ -204,6 +221,44 @@ NIL
 NIL
 NIL
 1
+
+PLOT
+572
+14
+928
+164
+Overall mean distance from the truth
+NIL
+NIL
+0.0
+1.0
+0.0
+1.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -16777216 true "" "plot meanDistance"
+
+PLOT
+571
+167
+930
+317
+Mean credences
+NIL
+NIL
+0.0
+1.0
+0.0
+1.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -16777216 true "" "plot objectiveChance"
+"Group A" 1.0 0 -955883 true "" "plot credenceTypeA"
+"Group B" 1.0 0 -13345367 true "" "plot credenceTypeB"
 
 @#$#@#$#@
 ## WHAT IS IT?
