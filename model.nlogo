@@ -4,6 +4,8 @@ people-own[
   groupType
   credence
   quietenTendency
+  expectedPatchConsensus
+  expectedDivergence
  ]
 
 globals[
@@ -23,6 +25,7 @@ to setup
 end
 
 to go
+  ;if learning function is toggled on, people will individually try and assess the average group opinions
   prepareGame
   playGame
   tick
@@ -31,10 +34,23 @@ end
 to playGame
   ask patches [
     let participants turtles-here
+    let countParticipants count participants
+    let countParticipantsA count turtles-here with [groupType = "A"]
+    let countParticipantsB count turtles-here with [groupType = "B"]
+
     ask participants [
-      ;playRound1
-      ;playRound2
-      ;playRound3
+      ;playRound1: Calculate expected patch consensus and expected divergence
+
+      ifelse groupType = "A"[ ;possibly ommit own credence from this calculation?
+        set expectedPatchConsensus (credence + (countParticipantsA - 1) * credenceTypeA + countParticipantsB * credenceTypeB) / countParticipants
+      ][
+        set expectedPatchConsensus (credence + countParticipantsA * credenceTypeA + (countParticipantsB - 1) * credenceTypeB) / countParticipants
+      ]
+      set expectedDivergence abs (expectedPatchConsensus - credence)
+
+      ;playRound2: calculate expected utility and give testimony
+
+      ;playRound3: quieten, (receive your utility if the learning function is turned on), update your credences
     ]
 
   ]
@@ -121,8 +137,8 @@ end
 GRAPHICS-WINDOW
 5
 10
-563
-569
+463
+469
 -1
 -1
 50.0
@@ -135,10 +151,10 @@ GRAPHICS-WINDOW
 1
 1
 1
--5
-5
--5
-5
+-4
+4
+-4
+4
 0
 0
 1
@@ -201,7 +217,7 @@ biasTypeA
 biasTypeA
 -1
 1
-1.0
+0.5
 0.1
 1
 NIL
@@ -216,7 +232,7 @@ biasTypeB
 biasTypeB
 -1
 1
--1.0
+-0.5
 0.1
 1
 NIL
@@ -352,7 +368,7 @@ worldDimensions
 worldDimensions
 4
 10
-10.0
+8.0
 2
 1
 NIL
