@@ -21,6 +21,7 @@ to setup
 end
 
 to go
+  prepareRound
   tick
 end
 
@@ -36,7 +37,7 @@ to setupAgents
     set heading random 360
     set credence objectiveTruth * biasTypeA ;later this bias might be featured in experiments
     set quietenTendency 0 ;add type specific slider with reasonable values later
-    set groupType 0
+    set groupType "A"
     set color yellow
     set shape "person"
     set size 0.5
@@ -48,7 +49,7 @@ to setupAgents
     set heading random 360
     set credence objectiveTruth * biasTypeA ;later this bias might be featured in experiments
     set quietenTendency 0 ;add type specific slider with reasonable values later
-    set groupType 1
+    set groupType "B"
     set color blue
     set shape "person"
     set size 0.5
@@ -63,6 +64,24 @@ to setupWorld
   print "--------------------------------------------------------------------------------------"
   print(word "New simulation started @ "date-and-time)
   print(word "In this simulation the objective value of the proposition is " objectiveTruth ".")
+end
+
+
+to prepareRound
+  set credenceTypeA 0
+  set credenceTypeB 0
+  ask people[
+    forward random 10
+    left (random 10) - 5
+    ifelse groupType = "A" [
+      set credenceTypeA credenceTypeA + credence
+    ][
+      set credenceTypeB credenceTypeB + credence
+    ]
+  ]
+  set credenceTypeA credenceTypeA / countTypeA
+  set credenceTypeB credenceTypeB / countTypeB
+  print(word "At the start of round " ticks " the average credence in P was " credenceTypeA " for group A, and " credenceTypeB " for group B.")
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
@@ -168,6 +187,23 @@ biasTypeB
 1
 NIL
 HORIZONTAL
+
+BUTTON
+85
+579
+148
+612
+NIL
+go
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
 
 @#$#@#$#@
 ## WHAT IS IT?
