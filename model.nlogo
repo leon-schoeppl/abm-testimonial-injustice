@@ -6,13 +6,17 @@ people-own[
   quietenTendency
   expectedPatchConsensus
   expectedDivergence
- ]
+  expectedUtility
+  testimony
+]
 
 globals[
   objectiveChance
   countPeople
   credenceTypeA
   credenceTypeB
+  testimonyTypeA
+  testimonyTypeB
   meanDistance
   utilityMatrix
 ]
@@ -39,6 +43,7 @@ to playGame
     let countParticipantsB count turtles-here with [groupType = "B"]
 
     ask participants [
+      ;-----------------------------------------------------------------------------------------------------------------------------------------------------
       ;playRound1: Calculate expected patch consensus and expected divergence
 
       ifelse groupType = "A"[ ;possibly ommit own credence from this calculation?
@@ -48,8 +53,30 @@ to playGame
       ]
       set expectedDivergence abs (expectedPatchConsensus - credence)
 
+      ;-----------------------------------------------------------------------------------------------------------------------------------------------------
       ;playRound2: calculate expected utility and give testimony
+      ifelse groupType = "A"[
+        ifelse expectedDivergence > quietenThresholdB [
+          set expectedUtility countParticipantsB * penaltyPerPerson
+        ][
+          set expectedUtility 0
 
+        ]
+      ][
+        ifelse expectedDivergence > quietenThresholdA [
+          set expectedUtility countParticipantsA * penaltyPerPerson
+        ][
+          set expectedUtility 0
+        ]
+      ]
+
+      ifelse expectedUtility < penaltySmothering [;negative values are being compared here
+        set testimony (credence + expectedPatchConsensus) / 2 ;split the difference with majority consensus
+      ][
+        set testimony credence
+      ]
+
+      ;-----------------------------------------------------------------------------------------------------------------------------------------------------
       ;playRound3: quieten, (receive your utility if the learning function is turned on), update your credences
     ]
 
@@ -110,10 +137,12 @@ to setupWorld
 end
 
 
-to prepareGame ;agents move, group credences and distance from the truth are updated and printed
+to prepareGame ;agents move, group credences, testimony and distance from the truth are updated and printed
   set meanDistance 0
   set credenceTypeA 0
   set credenceTypeB 0
+  set testimonyTypeA 0
+  set testimonyTypeB 0
   ask people[
     if credence > 1 [set credence 1] ;just in case
     if credence < 0 [set credence 0]
@@ -122,23 +151,28 @@ to prepareGame ;agents move, group credences and distance from the truth are upd
     set meanDistance meanDistance + abs (objectiveChance - credence)
     ifelse groupType = "A" [
       set credenceTypeA credenceTypeA + credence
+      set testimonyTypeA testimonyTypeA + testimony
     ][
       set credenceTypeB credenceTypeB + credence
+      set testimonyTypeB testimonyTypeB + testimony
     ]
   ]
   set meanDistance meanDistance / countPeople
   set credenceTypeA credenceTypeA / countTypeA
   set credenceTypeB credenceTypeB / countTypeB
+  set testimonyTypeA testimonyTypeA  / countTypeA
+  set testimonyTypeB testimonyTypeB  / countTypeB
   print "--------------------------------------------------------------------------------------"
   print(word "At the start of round " ticks " the average credence in P is " credenceTypeA " for group A, and " credenceTypeB " for group B.")
+  print(word "The average testimony given by members of group A is " testimonyTypeA ", while for members of group B it is " testimonyTypeB ".")
   print(word "The mean distance from the truth for the whole population of agents is currently " meanDistance ".")
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
 5
 10
-463
-469
+363
+369
 -1
 -1
 50.0
@@ -151,10 +185,10 @@ GRAPHICS-WINDOW
 1
 1
 1
--4
-4
--4
-4
+-3
+3
+-3
+3
 0
 0
 1
@@ -202,7 +236,7 @@ countTypeB
 countTypeB
 10
 200
-100.0
+70.0
 10
 1
 NIL
@@ -330,30 +364,15 @@ Utility Function Values
 1
 
 SLIDER
-978
-101
-1207
-134
-rewardSpeakingYourMind
-rewardSpeakingYourMind
-0
-10
-2.0
-1
-1
-NIL
-HORIZONTAL
-
-SLIDER
-1003
-139
-1191
-172
+1001
+96
+1189
+129
 penaltySmothering
 penaltySmothering
 -10
 0
--10.0
+-5.0
 1
 1
 NIL
@@ -368,11 +387,61 @@ worldDimensions
 worldDimensions
 4
 10
-8.0
+6.0
 2
 1
 NIL
 HORIZONTAL
+
+SLIDER
+386
+617
+574
+650
+quietenThresholdA
+quietenThresholdA
+0.1
+0.9
+0.2
+0.1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+387
+652
+575
+685
+quietenThresholdB
+quietenThresholdB
+0.1
+0.9
+0.2
+0.1
+1
+NIL
+HORIZONTAL
+
+PLOT
+938
+168
+1307
+318
+Mean testimonies
+NIL
+NIL
+0.0
+1.0
+0.0
+1.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -16777216 true "" "plot objectiveChance"
+"pen-1" 1.0 0 -955883 true "" "plot testimonyTypeA"
+"pen-2" 1.0 0 -13345367 true "" "plot testimonyTypeB"
 
 @#$#@#$#@
 ## WHAT IS IT?
