@@ -34,7 +34,7 @@ end
 to go
   ;if learning function is toggled on, people will individually try and assess the average group opinions
   prepareGame
-  playGame
+  ifelse allowInjustice = true [playGame][skipGame]
   tick
 end
 
@@ -107,7 +107,7 @@ to playGame
         ]
 
         ifelse (groupType != groupTypeMyself) AND (divergence > relevantThreshold) [
-          ask myself [set input input + (([credence] of myself + credence) / 2)] ;ass additional quieting effects here
+          ask myself [set input input + (([credence] of myself + credence) / 2)] ;add additional quieting effects here
 
 
         ][
@@ -127,7 +127,26 @@ to playGame
 
 end
 
+to skipGame ;if the simulation disallows testimonial injustice, everyone just updates by splitting the difference with the mean of the other participants
+  ask patches [
+    let participants turtles-here
+    let countParticipants count participants
 
+    ask participants[
+      set input 0
+      if countParticipants > 1 [
+        ask other participants[
+          ask myself [
+            set input input + [credence] of myself
+          ]
+        ]
+          set input input / (countParticipants - 1)
+          set credence (input + credence) / 2
+
+      ]
+    ]
+  ]
+end
 
 to setupAgents
   set countPeople countTypeA + countTypeB + countTypeC
@@ -173,7 +192,6 @@ to setupAgents
   ]
 
 end
-
 to setupWorld
   resize-world (0 -(worldDimensions / 2)) (worldDimensions / 2) (0 -(worldDimensions / 2)) (worldDimensions / 2) ;only few patches, s.t. people can properly be sorted into games
   set-patch-size 50
@@ -190,7 +208,6 @@ to setupWorld
 
 
 end
-
 to prepareGame ;agents move, group credences, testimony and distance from the truth are updated and printed
 
   resetValues
@@ -229,7 +246,6 @@ to prepareGame ;agents move, group credences, testimony and distance from the tr
 
   printUpdate
 end
-
 to resetValues
   set meanDistance 0
   set credenceTypeA 0
@@ -245,7 +261,6 @@ to printUpdate
   print(word "The average testimony given by members of group A is " (precision testimonyTypeA 3) ", while for members of group B it is " (precision testimonyTypeB 3) " and for members of group C it is " (precision testimonyTypeC 3) ".")
   print(word "The mean distance from the truth for the whole population of agents is currently " (precision meanDistance 3) ".")
 end
-
 to printSetup
   print "--------------------------------------------------------------------------------------"
   print "--------------------------------------------------------------------------------------"
@@ -615,6 +630,17 @@ B
 20
 105.0
 1
+
+SWITCH
+415
+608
+567
+641
+allowInjustice
+allowInjustice
+1
+1
+-1000
 
 @#$#@#$#@
 ## WHAT IS IT?
