@@ -62,25 +62,40 @@ to playGame
       set expectedDivergence abs (expectedPatchConsensus - credence)
 
       ;-----------------------------------------------------------------------------------------------------------------------------------------------------
-      ;playRound2: calculate expected utility and give testimony
-      ifelse groupType = "A"[
+      ;playRound2: calculate expected utility and give testimony; refactor later
 
-        ifelse expectedDivergence > quietenThresholdB [
-          set expectedUtility countParticipantsB * penaltyPerPerson
-        ][
-          set expectedUtility 0
+      if groupType = "A"[
+        set expectedUtility 0
 
+        if expectedDivergence > quietenThresholdB [
+          set expectedUtility expectedUtility + countParticipantsB * penaltyPerPerson
         ]
-      ][
-        ifelse expectedDivergence > quietenThresholdA [
-          set expectedUtility countParticipantsA * penaltyPerPerson
-        ][
-          set expectedUtility 0
+        if expectedDivergence > quietenThresholdC [
+          set expectedUtility expectedUtility + countParticipantsC * penaltyPerPerson
         ]
       ]
 
+      if groupType = "B"[
+        set expectedUtility 0
 
+        if expectedDivergence > quietenThresholdA [
+          set expectedUtility expectedUtility + countParticipantsA * penaltyPerPerson
+        ]
+        if expectedDivergence > quietenThresholdC [
+          set expectedUtility expectedUtility + countParticipantsC * penaltyPerPerson
+        ]
+      ]
 
+      if groupType = "C"[
+        set expectedUtility 0
+
+        if expectedDivergence > quietenThresholdA [
+          set expectedUtility expectedUtility + countParticipantsA * penaltyPerPerson
+        ]
+        if expectedDivergence > quietenThresholdB [
+          set expectedUtility expectedUtility + countParticipantsB * penaltyPerPerson
+        ]
+      ]
 
 
       ifelse expectedUtility < penaltySmothering [;negative values are being compared here
@@ -90,38 +105,37 @@ to playGame
       ]
     ]
 
-      ;-----------------------------------------------------------------------------------------------------------------------------------------------------
-      ;playRound3: quieten, (receive your utility if the learning function is turned on), update your credences
+    ;-----------------------------------------------------------------------------------------------------------------------------------------------------
+    ;playRound3: quieten, (receive your utility if the learning function is turned on), update your credences
 
-     ask participants [
+    ask participants [
       set input 0
       if countParticipants > 1 [
-      ask other participants [
-        let divergence abs (credence - [credence] of myself)
-        let groupTypeMyself [groupType] of myself
-        let relevantThreshold 0
-        ifelse groupTypeMyself = "A" [
-          set relevantThreshold quietenThresholdA
-        ][
-          set relevantThreshold quietenthresholdB
+        ask other participants [
+          let divergence abs (credence - [credence] of myself)
+          let groupTypeMyself [groupType] of myself
+
+          let relevantThreshold 0
+          ifelse groupTypeMyself = "A" [
+            set relevantThreshold quietenThresholdA
+          ][
+            ifelse groupTypeMyself = "B" [
+              set relevantThreshold quietenThresholdB
+            ][
+              set relevantThreshold quietenThresholdC
+            ]
+          ]
+
+          ifelse (groupType != groupTypeMyself) AND (divergence > relevantThreshold) [
+            ask myself [set input input + (([credence] of myself + credence) / 2)] ;add additional quieting effects here
+          ][
+            ask myself [set input input + [credence] of myself]
+          ]
         ]
-
-        ifelse (groupType != groupTypeMyself) AND (divergence > relevantThreshold) [
-          ask myself [set input input + (([credence] of myself + credence) / 2)] ;add additional quieting effects here
-
-
-        ][
-          ask myself [set input input + [credence] of myself]
-        ]
-
-      ]
-
         set input input / (countParticipants - 1)
-
-      set credence (input + credence) / 2
+        set credence (input + credence) / 2
       ]
     ]
-
   ]
 
 
@@ -565,7 +579,7 @@ countTypeC
 countTypeC
 0
 200
-0.0
+80.0
 10
 1
 NIL
