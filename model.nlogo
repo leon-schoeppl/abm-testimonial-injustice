@@ -16,7 +16,7 @@ globals[
   countPeople ;total number of agents in the simulation
 
   ;------------------------------------------------------------------------------
-  ; groups 0 (A) , 1 (B) and 2 (C)
+  ; groups 0 (A) , 1 (B) and 2 (C) (, and 3 is sometimes the total of all groups)
   groupBiases
   groupColors
   groupCredences
@@ -25,12 +25,7 @@ globals[
   groupCounts
 
 
-  credenceTypeA
-  credenceTypeB
-  credenceTypeC
-  testimonyTypeA
-  testimonyTypeB
-  testimonyTypeC
+
   meanDistance
   utilityMatrix
 ]
@@ -54,37 +49,42 @@ end
 to playGame
   ask patches [
     let participants turtles-here
-    let countParticipants count participants
-    let countParticipantsA count turtles-here with [groupType = 0]
-    let countParticipantsB count turtles-here with [groupType = 1]
-    let countParticipantsC count turtles-here with [groupType = 2]
+    let countParticipants (list (count turtles-here with [groupType = 0]) (count turtles-here with [groupType = 1]) (count turtles-here with [groupType = 2]) (count participants))
 
-    ask participants [
-      ;-----------------------------------------------------------------------------------------------------------------------------------------------------
-      ;playRound1: Calculate expected patch consensus and expected divergence
+    roundOne participants countParticipants
+    roundTwo participants countParticipants
+    roundThree participants countParticipants
 
+  ]
+end
+
+
+
+to roundOne [participants countParticipants] ;Calculate expected patch consensus and expected divergence
+  ask participants [
       ifelse groupType = 0[ ;possibly ommit own credence from this calculation?
-        set expectedPatchConsensus (credence + (countParticipantsA - 1) * credenceTypeA + countParticipantsB * credenceTypeB + countParticipantsC * credenceTypeC) / countParticipants
+        set expectedPatchConsensus (credence + ((item 0 countParticipants) - 1) * (item 0 groupCredences) + (item 1 countParticipants) * (item 1 groupCredences) + (item 2 countParticipants) * (item 2 groupCredences)) / (item 3 countParticipants)
       ][
         ifelse groupType = 1[
-          set expectedPatchConsensus (credence + countParticipantsA * credenceTypeA + (countParticipantsB - 1) * credenceTypeB + countParticipantsC * credenceTypeC) / countParticipants
+          set expectedPatchConsensus (credence + (item 0 countParticipants) * (item 0 groupCredences) + ((item 1 countParticipants) - 1) * (item 1 groupCredences) + (item 2 countParticipants) * (item 2 groupCredences)) / (item 3 countParticipants)
         ][
-          set expectedPatchConsensus (credence + countParticipantsA * credenceTypeA + countParticipantsB * credenceTypeB + (countParticipantsC - 1) * credenceTypeC) / countParticipants
+          set expectedPatchConsensus (credence + (item 0 countParticipants) * (item 0 groupCredences) + (item 1 countParticipants) * (item 1 groupCredences) + ((item 2 countParticipants) - 1) * (item 2 groupCredences)) / (item 3 countParticipants)
         ]
       ]
       set expectedDivergence abs (expectedPatchConsensus - credence)
+    ]
+end
 
-      ;-----------------------------------------------------------------------------------------------------------------------------------------------------
-      ;playRound2: calculate expected utility and give testimony; refactor later
-
+to roundTwo [participants countParticipants] ;calculate expected utility and give testimony; refactor later
+      ask participants [
       if groupType = 0[
         set expectedUtility 0
 
         if expectedDivergence > quietenThresholdB [
-          set expectedUtility expectedUtility + countParticipantsB * penaltyPerPerson
+          set expectedUtility expectedUtility + (item 1 countParticipants) * penaltyPerPerson
         ]
         if expectedDivergence > quietenThresholdC [
-          set expectedUtility expectedUtility + countParticipantsC * penaltyPerPerson
+          set expectedUtility expectedUtility + (item 2 countParticipants) * penaltyPerPerson
         ]
       ]
 
@@ -92,10 +92,10 @@ to playGame
         set expectedUtility 0
 
         if expectedDivergence > quietenThresholdA [
-          set expectedUtility expectedUtility + countParticipantsA * penaltyPerPerson
+          set expectedUtility expectedUtility + (item 0 countParticipants) * penaltyPerPerson
         ]
         if expectedDivergence > quietenThresholdC [
-          set expectedUtility expectedUtility + countParticipantsC * penaltyPerPerson
+          set expectedUtility expectedUtility + (item 2 countParticipants) * penaltyPerPerson
         ]
       ]
 
@@ -103,10 +103,10 @@ to playGame
         set expectedUtility 0
 
         if expectedDivergence > quietenThresholdA [
-          set expectedUtility expectedUtility + countParticipantsA * penaltyPerPerson
+          set expectedUtility expectedUtility + (item 0 countParticipants) * penaltyPerPerson
         ]
         if expectedDivergence > quietenThresholdB [
-          set expectedUtility expectedUtility + countParticipantsB * penaltyPerPerson
+          set expectedUtility expectedUtility + (item 1 countParticipants) * penaltyPerPerson
         ]
       ]
 
@@ -117,13 +117,12 @@ to playGame
         set testimony credence
       ]
     ]
+end
 
-    ;-----------------------------------------------------------------------------------------------------------------------------------------------------
-    ;playRound3: quieten, (receive your utility if the learning function is turned on), update your credences
-
-    ask participants [
+to roundThree [participants countParticipants]
+ask participants [
       set input 0
-      if countParticipants > 1 [
+      if (item 3 countParticipants) > 1 [
         ask other participants [
           let divergence abs (credence - [credence] of myself)
           let groupTypeMyself [groupType] of myself
@@ -145,12 +144,13 @@ to playGame
             ask myself [set input input + [credence] of myself]
           ]
         ]
-        set input input / (countParticipants - 1)
+        set input input / ((item 3 countParticipants) - 1)
         set credence (input + credence) / 2
       ]
     ]
-  ]
+end
 
+to doExperiments
 
 end
 
@@ -233,6 +233,8 @@ to prepareGame ;agents move, group credences, testimony and distance from the tr
 
 end
 
+
+
 to resetValues
   set groupCredences (list 0 0 0)
   set groupTestimonies (list 0 0 0)
@@ -241,8 +243,8 @@ end
 
 to printUpdate
   print "--------------------------------------------------------------------------------------"
-  print(word "At the start of round " ticks " the average credence in P is " (precision credenceTypeA 3) " for group A, " (precision credenceTypeB 3) " for group B, and " (precision credenceTypeC 3) " for group C.")
-  print(word "The average testimony given by members of group A is " (precision testimonyTypeA 3) ", while for members of group B it is " (precision testimonyTypeB 3) " and for members of group C it is " (precision testimonyTypeC 3) ".")
+  print(word "At the start of round " ticks " the average credence in P is " (precision (item 0 groupCredences) 3) " for group A, " (precision (item 1 groupCredences) 3) " for group B, and " (precision (item 2 groupCredences) 3) " for group C.")
+  print(word "The average testimony given by members of group A is " (precision (item 0 groupTestimonies) 3) ", while for members of group B it is " (precision (item 1 groupTestimonies) 3) " and for members of group C it is " (precision (item 2 groupTestimonies) 3) ".")
   print(word "The mean distance from the truth for the whole population of agents is currently " (precision meanDistance 3) ".")
 end
 
@@ -638,7 +640,7 @@ SWITCH
 648
 allowInjustice
 allowInjustice
-1
+0
 1
 -1000
 
