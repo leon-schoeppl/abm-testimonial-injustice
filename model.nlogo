@@ -31,6 +31,8 @@ globals[
   utilityMatrix
   smotheringCounter
   quietingCounter
+  smotheringCounterTotal
+  quietingCounterTotal
 ]
 
 to setup
@@ -49,7 +51,7 @@ to go
   ifelse allowInjustice = true [playGame][skipGame]
   doExperiments ;add a chance here? How often do agents collect data?
   printUpdate
-
+  if ticks = 30 [stop]
 end
 
 to playGame
@@ -63,8 +65,6 @@ to playGame
 
   ]
 end
-
-
 
 to roundOne [participants countParticipants] ;Calculate expected patch consensus and expected divergence
   ask participants [
@@ -119,7 +119,8 @@ to roundTwo [participants countParticipants] ;calculate expected utility and giv
 
     ifelse expectedUtility < penaltySmothering [;negative values are being compared here
       set testimony (credence + expectedPatchConsensus) / 2 ;split the difference with majority consensus
-      set smotheringCounter smotheringCounter + 1 ;reset when?
+      set smotheringCounter smotheringCounter + 1
+      set smotheringCounterTotal smotheringCounterTotal + 1
     ][
       set testimony credence
     ]
@@ -155,7 +156,8 @@ ask participants [
 
         [; add here: its not just about divergence between agents. The patch consensus matters!
           ask myself [set input input + (([credence] of myself + credence) / 2)]
-          set quietingCounter quietingCounter + 1 ;reset when?
+          set quietingCounter quietingCounter + 1
+          set quietingCounterTotal quietingCounterTotal + 1
           ;add additional quieting effects here
         ][
             ask myself [set input input + [credence] of myself]
@@ -167,13 +169,16 @@ ask participants [
   ]
 end
 
-
-
 to doExperiments
+  ;agents should slowly get closer to the objective chance on their own ;use bayes theorem and 'proper' experiments here?
+  ask people[
+  if experimentFrequency > random 9 [
+      set credence credence + (objectiveChance - credence)* 0.1
+      set credence (credence + item groupType groupBiases * 0.01 )
+    ]
+  ]
 
 end
-
-
 
 to skipGame ;if the simulation disallows testimonial injustice, everyone just updates by splitting the difference with the mean of the other participants
   ask patches [
@@ -267,7 +272,7 @@ to printUpdate
   print(word "After round " ticks " the average credence in P is " (precision (item 0 groupCredences) 3) " for group A, " (precision (item 1 groupCredences) 3) " for group B, and " (precision (item 2 groupCredences) 3) " for group C.")
   print(word "The average testimony given by members of group A is " (precision (item 0 groupTestimonies) 3) ", while for members of group B it is " (precision (item 1 groupTestimonies) 3) " and for members of group C it is " (precision (item 2 groupTestimonies) 3) ".")
   print(word "The mean distance from the truth for the whole population of agents is currently " (precision meanDistance 3) ".")
-  print(word "This round " smotheringCounter " agents tailored their testimony, and a total of " quietingCounter " individual instances of quieting were committed.")
+  print(word "This round " smotheringCounter " agents tailored their testimony (total of "smotheringCounterTotal ") , and  " quietingCounter " individual instances of quieting were committed (total of " quietingCounterTotal ").")
 end
 
 to printSetup
@@ -475,7 +480,7 @@ penaltyPerPerson
 penaltyPerPerson
 -10
 0
--10.0
+-2.0
 1
 1
 NIL
@@ -507,9 +512,9 @@ NIL
 HORIZONTAL
 
 SLIDER
-156
+217
 579
-328
+389
 612
 worldDimensions
 worldDimensions
@@ -667,6 +672,38 @@ allowInjustice
 0
 1
 -1000
+
+SLIDER
+663
+662
+866
+695
+experimentFrequency
+experimentFrequency
+0
+10
+2.0
+1
+1
+NIL
+HORIZONTAL
+
+BUTTON
+152
+579
+215
+612
+NIL
+go
+T
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
 
 @#$#@#$#@
 ## WHAT IS IT?
