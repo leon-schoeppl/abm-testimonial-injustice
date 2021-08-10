@@ -17,7 +17,6 @@ globals[
 
   ;------------------------------------------------------------------------------
   ; groups 0 (A) , 1 (B) and 2 (C)
-  groupNames
   groupBiases
   groupColors
   groupCredences
@@ -56,18 +55,18 @@ to playGame
   ask patches [
     let participants turtles-here
     let countParticipants count participants
-    let countParticipantsA count turtles-here with [groupType = "A"]
-    let countParticipantsB count turtles-here with [groupType = "B"]
-    let countParticipantsC count turtles-here with [groupType = "C"]
+    let countParticipantsA count turtles-here with [groupType = 0]
+    let countParticipantsB count turtles-here with [groupType = 1]
+    let countParticipantsC count turtles-here with [groupType = 2]
 
     ask participants [
       ;-----------------------------------------------------------------------------------------------------------------------------------------------------
       ;playRound1: Calculate expected patch consensus and expected divergence
 
-      ifelse groupType = "A"[ ;possibly ommit own credence from this calculation?
+      ifelse groupType = 0[ ;possibly ommit own credence from this calculation?
         set expectedPatchConsensus (credence + (countParticipantsA - 1) * credenceTypeA + countParticipantsB * credenceTypeB + countParticipantsC * credenceTypeC) / countParticipants
       ][
-        ifelse groupType = "B"[
+        ifelse groupType = 1[
           set expectedPatchConsensus (credence + countParticipantsA * credenceTypeA + (countParticipantsB - 1) * credenceTypeB + countParticipantsC * credenceTypeC) / countParticipants
         ][
           set expectedPatchConsensus (credence + countParticipantsA * credenceTypeA + countParticipantsB * credenceTypeB + (countParticipantsC - 1) * credenceTypeC) / countParticipants
@@ -78,7 +77,7 @@ to playGame
       ;-----------------------------------------------------------------------------------------------------------------------------------------------------
       ;playRound2: calculate expected utility and give testimony; refactor later
 
-      if groupType = "A"[
+      if groupType = 0[
         set expectedUtility 0
 
         if expectedDivergence > quietenThresholdB [
@@ -89,7 +88,7 @@ to playGame
         ]
       ]
 
-      if groupType = "B"[
+      if groupType = 1[
         set expectedUtility 0
 
         if expectedDivergence > quietenThresholdA [
@@ -100,7 +99,7 @@ to playGame
         ]
       ]
 
-      if groupType = "C"[
+      if groupType = 2[
         set expectedUtility 0
 
         if expectedDivergence > quietenThresholdA [
@@ -130,10 +129,10 @@ to playGame
           let groupTypeMyself [groupType] of myself
 
           let relevantThreshold 0
-          ifelse groupTypeMyself = "A" [
+          ifelse groupTypeMyself = 0 [
             set relevantThreshold quietenThresholdA
           ][
-            ifelse groupTypeMyself = "B" [
+            ifelse groupTypeMyself = 1 [
               set relevantThreshold quietenThresholdB
             ][
               set relevantThreshold quietenThresholdC
@@ -177,7 +176,6 @@ to skipGame ;if the simulation disallows testimonial injustice, everyone just up
 end
 
 to setupAgents
-  set groupNames (list "A" "B" "C")
   set groupColors (list orange blue brown)
   set groupBiases (list biasTypeA biasTypeB biasTypeC)
   set groupCounts (list countTypeA countTypeB countTypeC)
@@ -214,41 +212,31 @@ to prepareGame ;agents move, group credences, testimony and distance from the tr
     forward random 10
     left (random 10) - 5
     set meanDistance meanDistance + abs (objectiveChance - credence)
-    ifelse groupType = "A" [
-      set credenceTypeA credenceTypeA + credence
-      set testimonyTypeA testimonyTypeA + testimony
-    ][
-      ifelse groupType = "B" [
-      set credenceTypeB credenceTypeB + credence
-      set testimonyTypeB testimonyTypeB + testimony
-      ][
-        set credenceTypeC credenceTypeC + credence
-        set testimonyTypeC testimonyTypeC + testimony
-      ]
-    ]
+
+    set groupCredences replace-item groupType groupCredences ((item groupType groupCredences) + credence)
+    set groupTestimonies replace-item groupType groupTestimonies ((item groupType groupTestimonies) + testimony)
+
   ]
-  ;refactor here
+  set groupCredences replace-item 0 groupCredences (item 0 groupCredences / item 0 groupCounts)
+  set groupTestimonies replace-item 0 groupTestimonies (item 0 groupTestimonies / item 0 groupCounts)
+  set groupCredences replace-item 1 groupCredences (item 1 groupCredences / item 1 groupCounts)
+  set groupTestimonies replace-item 1 groupTestimonies (item 1 groupTestimonies / item 1 groupCounts)
+
+  if item 2 groupCounts > 0 [
+    set groupCredences replace-item 2 groupCredences (item 2 groupCredences / item 2 groupCounts)
+    set groupTestimonies replace-item 2 groupTestimonies (item 2 groupTestimonies / item 2 groupCounts)
+  ]
+
   set meanDistance meanDistance / countPeople
-  set credenceTypeA credenceTypeA / countTypeA
-  set credenceTypeB credenceTypeB / countTypeB
 
-  set testimonyTypeA testimonyTypeA  / countTypeA
-  set testimonyTypeB testimonyTypeB  / countTypeB
 
-  if countTypeC > 0[
-    set credenceTypeC credenceTypeC / countTypeC
-    set testimonyTypeC testimonyTypeC  / countTypeC
-  ]
+
 end
 
 to resetValues
+  set groupCredences (list 0 0 0)
+  set groupTestimonies (list 0 0 0)
   set meanDistance 0
-  set credenceTypeA 0
-  set credenceTypeB 0
-  set credenceTypeC 0
-  set testimonyTypeA 0
-  set testimonyTypeB 0
-  set testimonyTypeC 0
 end
 
 to printUpdate
@@ -274,7 +262,7 @@ to setupGroup [groupNumber]
     set heading random 360
     set credence objectiveChance + random-float 1 * (item groupNumber groupBiases) ;later this bias might be featured in experiments
     set quietenTendency 0 ;with the learning function turned on, each individual might have their own tendency; until then just group values
-    set groupType item groupNumber groupNames
+    set groupType groupNumber
     set color item groupNumber groupColors
     set shape "person"
     set size 0.5
@@ -317,7 +305,7 @@ countTypeA
 countTypeA
 10
 200
-100.0
+200.0
 10
 1
 NIL
@@ -349,7 +337,7 @@ countTypeB
 countTypeB
 10
 200
-100.0
+70.0
 10
 1
 NIL
@@ -364,7 +352,7 @@ biasTypeA
 biasTypeA
 -1
 1
--1.0
+-0.2
 0.1
 1
 NIL
@@ -379,7 +367,7 @@ biasTypeB
 biasTypeB
 -1
 1
-1.0
+0.2
 0.1
 1
 NIL
@@ -437,9 +425,9 @@ false
 "" ""
 PENS
 "default" 1.0 0 -16777216 true "" "plot objectiveChance"
-"Group A" 1.0 0 -955883 true "" "plot credenceTypeA"
-"Group B" 1.0 0 -13345367 true "" "plot credenceTypeB"
-"pen-3" 1.0 0 -6459832 true "" "plot credenceTypeC"
+"Group A" 1.0 0 -955883 true "" "plot item 0 groupCredences"
+"Group B" 1.0 0 -13345367 true "" "plot item 1 groupCredences"
+"Group C" 1.0 0 -6459832 true "" "plot item 2 groupCredences"
 
 SWITCH
 7
@@ -554,9 +542,9 @@ false
 "" ""
 PENS
 "default" 1.0 0 -16777216 true "" "plot objectiveChance"
-"pen-1" 1.0 0 -955883 true "" "plot testimonyTypeA"
-"pen-2" 1.0 0 -13345367 true "" "plot testimonyTypeB"
-"pen-3" 1.0 0 -6459832 true "" "plot testimonyTypeC"
+"Group A" 1.0 0 -955883 true "" "plot item 0 groupTestimonies"
+"Group B" 1.0 0 -13345367 true "" "plot item 1 groupTestimonies"
+"Group C" 1.0 0 -6459832 true "" "plot item 2 groupTestimonies"
 
 TEXTBOX
 220
@@ -650,7 +638,7 @@ SWITCH
 648
 allowInjustice
 allowInjustice
-0
+1
 1
 -1000
 
