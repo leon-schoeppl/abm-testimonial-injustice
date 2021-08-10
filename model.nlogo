@@ -23,11 +23,14 @@ globals[
   groupTestimonies
   groupPercentages ;how many % of all agents are in groups A, B, C
   groupCounts
+  groupThresholds ;this will later be a summary of individual thresholds, not purely a group value
 
 
 
   meanDistance
   utilityMatrix
+  smotheringCounter
+  quietingCounter
 ]
 
 to setup
@@ -35,15 +38,18 @@ to setup
   reset-ticks
   setupWorld
   setupAgents
+  prepareGame
   printSetup
 end
 
 to go
   ;if learning function is toggled on, people will individually try and assess the average group opinions
-  prepareGame
-  printUpdate
-  ifelse allowInjustice = true [playGame][skipGame]
   tick
+  prepareGame
+  ifelse allowInjustice = true [playGame][skipGame]
+  doExperiments ;add a chance here? How often do agents collect data?
+  printUpdate
+
 end
 
 to playGame
@@ -111,48 +117,63 @@ to roundTwo [participants countParticipants] ;calculate expected utility and giv
       ]
 
 
-      ifelse expectedUtility < penaltySmothering [;negative values are being compared here
-        set testimony (credence + expectedPatchConsensus) / 2 ;split the difference with majority consensus
-      ][
-        set testimony credence
-      ]
+    ifelse expectedUtility < penaltySmothering [;negative values are being compared here
+      set testimony (credence + expectedPatchConsensus) / 2 ;split the difference with majority consensus
+      set smotheringCounter smotheringCounter + 1 ;reset when?
+    ][
+      set testimony credence
     ]
+  ]
 end
 
 to roundThree [participants countParticipants]
+  let patchConsensus 0
+  ask participants [
+    set patchConsensus patchConsensus + testimony
+  ]
+  if item 3 countParticipants > 0 [
+   set patchConsensus patchConsensus / item 3 countParticipants
+  ]
+
 ask participants [
-      set input 0
-      if (item 3 countParticipants) > 1 [
-        ask other participants [
-          let divergence abs (credence - [credence] of myself)
-          let groupTypeMyself [groupType] of myself
+    set input 0
+    let ownDivergenceConsensus abs (credence - patchConsensus)
+    if (item 3 countParticipants) > 1 [ ;no agent updates their credence alone on a patch
 
-          let relevantThreshold 0
-          ifelse groupTypeMyself = 0 [
-            set relevantThreshold quietenThresholdA
-          ][
-            ifelse groupTypeMyself = 1 [
-              set relevantThreshold quietenThresholdB
-            ][
-              set relevantThreshold quietenThresholdC
-            ]
-          ]
+      ask other participants [
+        let divergenceConsensus abs (testimony - patchConsensus)
+        let divergence abs (testimony - [credence] of myself)
+        let groupTypeMyself [groupType] of myself
+        let relevantThreshold item groupType groupThresholds
 
-          ifelse (groupType != groupTypeMyself) AND (divergence > relevantThreshold) [
-            ask myself [set input input + (([credence] of myself + credence) / 2)] ;add additional quieting effects here
-          ][
+
+        ifelse
+        (groupType != groupTypeMyself) ;first condition for quieting
+        AND ownDivergenceConsensus < relevantThreshold
+        AND divergenceConsensus > relevantThreshold ;maybe add adjustable boldness?
+        AND (divergence > relevantThreshold)
+
+        [; add here: its not just about divergence between agents. The patch consensus matters!
+          ask myself [set input input + (([credence] of myself + credence) / 2)]
+          set quietingCounter quietingCounter + 1 ;reset when?
+          ;add additional quieting effects here
+        ][
             ask myself [set input input + [credence] of myself]
-          ]
         ]
-        set input input / ((item 3 countParticipants) - 1)
-        set credence (input + credence) / 2
       ]
+      set input input / ((item 3 countParticipants) - 1)
+      set credence (input + credence) / 2
     ]
+  ]
 end
+
+
 
 to doExperiments
 
 end
+
+
 
 to skipGame ;if the simulation disallows testimonial injustice, everyone just updates by splitting the difference with the mean of the other participants
   ask patches [
@@ -181,6 +202,7 @@ to setupAgents
   set groupCounts (list countTypeA countTypeB countTypeC)
   set countPeople item 0 groupCounts + item 1 groupCounts + item 2 groupCounts
   set groupPercentages (list ((countTypeA / countPeople) * 100) ((countTypeB / countPeople) * 100) ((countTypeC / countPeople) * 100))
+  set groupThresholds (list quietenThresholdA quietenThresholdB quietenThresholdC)
 
   ;creates the agents of each group
   setupGroup 0
@@ -217,6 +239,8 @@ to prepareGame ;agents move, group credences, testimony and distance from the tr
     set groupTestimonies replace-item groupType groupTestimonies ((item groupType groupTestimonies) + testimony)
 
   ]
+
+  ;refactor here?
   set groupCredences replace-item 0 groupCredences (item 0 groupCredences / item 0 groupCounts)
   set groupTestimonies replace-item 0 groupTestimonies (item 0 groupTestimonies / item 0 groupCounts)
   set groupCredences replace-item 1 groupCredences (item 1 groupCredences / item 1 groupCounts)
@@ -228,24 +252,22 @@ to prepareGame ;agents move, group credences, testimony and distance from the tr
   ]
 
   set meanDistance meanDistance / countPeople
-
-
-
 end
-
-
 
 to resetValues
   set groupCredences (list 0 0 0)
   set groupTestimonies (list 0 0 0)
   set meanDistance 0
+  set quietingCounter 0
+  set smotheringCounter 0
 end
 
 to printUpdate
   print "--------------------------------------------------------------------------------------"
-  print(word "At the start of round " ticks " the average credence in P is " (precision (item 0 groupCredences) 3) " for group A, " (precision (item 1 groupCredences) 3) " for group B, and " (precision (item 2 groupCredences) 3) " for group C.")
+  print(word "After round " ticks " the average credence in P is " (precision (item 0 groupCredences) 3) " for group A, " (precision (item 1 groupCredences) 3) " for group B, and " (precision (item 2 groupCredences) 3) " for group C.")
   print(word "The average testimony given by members of group A is " (precision (item 0 groupTestimonies) 3) ", while for members of group B it is " (precision (item 1 groupTestimonies) 3) " and for members of group C it is " (precision (item 2 groupTestimonies) 3) ".")
   print(word "The mean distance from the truth for the whole population of agents is currently " (precision meanDistance 3) ".")
+  print(word "This round " smotheringCounter " agents tailored their testimony, and a total of " quietingCounter " individual instances of quieting were committed.")
 end
 
 to printSetup
@@ -255,6 +277,8 @@ to printSetup
   print(word "New simulation started @ "date-and-time)
   print(word "In this simulation the objective value of the proposition is " (precision objectiveChance 3) ".")
   print (word "It contains " countPeople " agents, " (precision item 0 groupPercentages 1) "% group A, " (precision item 1 groupPercentages 1) "% group B and " (precision item 2 groupPercentages 1) "% group C.")
+  print(word "The average credence in P is " (precision (item 0 groupCredences) 3) " for group A, " (precision (item 1 groupCredences) 3) " for group B, and " (precision (item 2 groupCredences) 3) " for group C.")
+  print(word "The mean distance from the truth for the whole population of agents starts at " (precision meanDistance 3) ".")
 end
 
 to setupGroup [groupNumber]
@@ -354,7 +378,7 @@ biasTypeA
 biasTypeA
 -1
 1
--0.2
+-1.0
 0.1
 1
 NIL
@@ -369,7 +393,7 @@ biasTypeB
 biasTypeB
 -1
 1
-0.2
+1.0
 0.1
 1
 NIL
@@ -451,7 +475,7 @@ penaltyPerPerson
 penaltyPerPerson
 -10
 0
--2.0
+-10.0
 1
 1
 NIL
