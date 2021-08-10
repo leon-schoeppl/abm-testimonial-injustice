@@ -12,8 +12,20 @@ people-own[
 ]
 
 globals[
-  objectiveChance
-  countPeople
+  objectiveChance ;value of the proposition that agents have credences about
+  countPeople ;total number of agents in the simulation
+
+  ;------------------------------------------------------------------------------
+  ; groups 0 (A) , 1 (B) and 2 (C)
+  groupNames
+  groupBiases
+  groupColors
+  groupCredences
+  groupTestimonies
+  groupPercentages ;how many % of all agents are in groups A, B, C
+  groupCounts
+
+
   credenceTypeA
   credenceTypeB
   credenceTypeC
@@ -29,11 +41,13 @@ to setup
   reset-ticks
   setupWorld
   setupAgents
+  printSetup
 end
 
 to go
   ;if learning function is toggled on, people will individually try and assess the average group opinions
   prepareGame
+  printUpdate
   ifelse allowInjustice = true [playGame][skipGame]
   tick
 end
@@ -163,49 +177,20 @@ to skipGame ;if the simulation disallows testimonial injustice, everyone just up
 end
 
 to setupAgents
-  set countPeople countTypeA + countTypeB + countTypeC
-  let percentageA (countTypeA / countPeople) * 100
-  let percentageB (countTypeB / countPeople) * 100
-  let percentageC (countTypeC / countPeople) * 100
-  print (word "This simulation contains " countPeople " agents, " (precision percentageA 1) "% group A, " (precision percentageB 1) "% group B and " (precision percentageC 1) "% group C.")
+  set groupNames (list "A" "B" "C")
+  set groupColors (list orange blue brown)
+  set groupBiases (list biasTypeA biasTypeB biasTypeC)
+  set groupCounts (list countTypeA countTypeB countTypeC)
+  set countPeople item 0 groupCounts + item 1 groupCounts + item 2 groupCounts
+  set groupPercentages (list ((countTypeA / countPeople) * 100) ((countTypeB / countPeople) * 100) ((countTypeC / countPeople) * 100))
 
-  create-people countTypeA[
-    set xcor random-xcor
-    set ycor random-ycor
-    set heading random 360
-    set credence objectiveChance + random-float 1 * biasTypeA ;later this bias might be featured in experiments
-    set quietenTendency 0 ;with the learning function turned on, each individual might have their own tendency; until then just group values
-    set groupType "A"
-    set color orange
-    set shape "person"
-    set size 0.5
-  ]
+  ;creates the agents of each group
+  setupGroup 0
+  setupGroup 1
+  setupGroup 2
 
-  create-people countTypeB[
-    set xcor random-xcor
-    set ycor random-ycor
-    set heading random 360
-    set credence objectiveChance + random-float 1 * biasTypeB ;later this bias might be featured in experiments
-    set quietenTendency 0
-    set groupType "B"
-    set color blue
-    set shape "person"
-    set size 0.5
-  ]
+ end
 
-  create-people countTypeC[
-    set xcor random-xcor
-    set ycor random-ycor
-    set heading random 360
-    set credence objectiveChance + random-float 1 * biasTypeC ;later this bias might be featured in experiments
-    set quietenTendency 0 ;with the learning function turned on, each individual might have their own tendency; until then just group values
-    set groupType "C"
-    set color brown
-    set shape "person"
-    set size 0.5
-  ]
-
-end
 to setupWorld
   resize-world (0 -(worldDimensions / 2)) (worldDimensions / 2) (0 -(worldDimensions / 2)) (worldDimensions / 2) ;only few patches, s.t. people can properly be sorted into games
   set-patch-size 50
@@ -217,11 +202,8 @@ to setupWorld
     ]
   ]
   set objectiveChance random-float 1
-
-  printSetup
-
-
 end
+
 to prepareGame ;agents move, group credences, testimony and distance from the truth are updated and printed
 
   resetValues
@@ -257,9 +239,8 @@ to prepareGame ;agents move, group credences, testimony and distance from the tr
     set credenceTypeC credenceTypeC / countTypeC
     set testimonyTypeC testimonyTypeC  / countTypeC
   ]
-
-  printUpdate
 end
+
 to resetValues
   set meanDistance 0
   set credenceTypeA 0
@@ -269,18 +250,35 @@ to resetValues
   set testimonyTypeB 0
   set testimonyTypeC 0
 end
+
 to printUpdate
   print "--------------------------------------------------------------------------------------"
   print(word "At the start of round " ticks " the average credence in P is " (precision credenceTypeA 3) " for group A, " (precision credenceTypeB 3) " for group B, and " (precision credenceTypeC 3) " for group C.")
   print(word "The average testimony given by members of group A is " (precision testimonyTypeA 3) ", while for members of group B it is " (precision testimonyTypeB 3) " and for members of group C it is " (precision testimonyTypeC 3) ".")
   print(word "The mean distance from the truth for the whole population of agents is currently " (precision meanDistance 3) ".")
 end
+
 to printSetup
   print "--------------------------------------------------------------------------------------"
   print "--------------------------------------------------------------------------------------"
   print "--------------------------------------------------------------------------------------"
   print(word "New simulation started @ "date-and-time)
   print(word "In this simulation the objective value of the proposition is " (precision objectiveChance 3) ".")
+  print (word "It contains " countPeople " agents, " (precision item 0 groupPercentages 1) "% group A, " (precision item 1 groupPercentages 1) "% group B and " (precision item 2 groupPercentages 1) "% group C.")
+end
+
+to setupGroup [groupNumber]
+  create-people item groupNumber groupCounts[
+    set xcor random-xcor
+    set ycor random-ycor
+    set heading random 360
+    set credence objectiveChance + random-float 1 * (item groupNumber groupBiases) ;later this bias might be featured in experiments
+    set quietenTendency 0 ;with the learning function turned on, each individual might have their own tendency; until then just group values
+    set groupType item groupNumber groupNames
+    set color item groupNumber groupColors
+    set shape "person"
+    set size 0.5
+  ]
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
@@ -311,9 +309,9 @@ ticks
 30.0
 
 SLIDER
-9
+1
 709
-205
+195
 742
 countTypeA
 countTypeA
@@ -343,40 +341,40 @@ NIL
 1
 
 SLIDER
-207
+197
 709
-403
+393
 742
 countTypeB
 countTypeB
 10
 200
-80.0
+100.0
 10
 1
 NIL
 HORIZONTAL
 
 SLIDER
-11
-746
-183
-779
+1
+744
+195
+777
 biasTypeA
 biasTypeA
 -1
 1
-0.3
+-1.0
 0.1
 1
 NIL
 HORIZONTAL
 
 SLIDER
-220
-748
-392
-781
+197
+744
+393
+777
 biasTypeB
 biasTypeB
 -1
@@ -446,7 +444,7 @@ PENS
 SWITCH
 7
 615
-239
+209
 648
 employLearningFunction
 employLearningFunction
@@ -510,10 +508,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-8
-788
-196
-821
+1
+778
+195
+811
 quietenThresholdA
 quietenThresholdA
 0.1
@@ -525,10 +523,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-210
-789
-398
-822
+197
+778
+393
+811
 quietenThresholdB
 quietenThresholdB
 0.1
@@ -561,35 +559,35 @@ PENS
 "pen-3" 1.0 0 -6459832 true "" "plot testimonyTypeC"
 
 TEXTBOX
-199
-653
-349
-677
-Groups Setup
+220
+815
+370
+839
+Group Setup
 20
 0.0
 1
 
 SLIDER
-405
+395
 709
-603
+593
 742
 countTypeC
 countTypeC
 0
 200
-80.0
+0.0
 10
 1
 NIL
 HORIZONTAL
 
 SLIDER
-414
-747
-586
-780
+395
+744
+593
+777
 biasTypeC
 biasTypeC
 -1
@@ -611,10 +609,10 @@ A
 1
 
 SLIDER
-406
-789
-594
-822
+395
+778
+593
+811
 quietenThresholdC
 quietenThresholdC
 0
@@ -646,13 +644,13 @@ B
 1
 
 SWITCH
-415
-608
-567
-641
+211
+615
+363
+648
 allowInjustice
 allowInjustice
-1
+0
 1
 -1000
 
