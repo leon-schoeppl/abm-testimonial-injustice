@@ -4,6 +4,8 @@ people-own[
   groupType
   credence
   quietenTendency
+  utilityQuieting ;how bad an instance of quieting committed by this agent is for the victim
+  utilitySmothering ;how bad an instance of smothering is for this agent themself
   expectedPatchConsensus
   expectedDivergence
   expectedUtility
@@ -26,9 +28,9 @@ globals[
   groupThresholds ;this will later be a summary of individual thresholds, not purely a group value
 
 
-
+  ;--------------------------------------------------------------------------------
+  ;Values for plotting and updating the outputs
   meanDistance
-  utilityMatrix
   smotheringCounter
   quietingCounter
   smotheringCounterTotal
@@ -51,7 +53,8 @@ to go
   ifelse allowInjustice = true [playGame][skipGame]
   doExperiments ;add a chance here? How often do agents collect data?
   printUpdate
-  if ticks = 30 [stop]
+
+  if ticks >= 30 [stop]
 end
 
 to playGame
@@ -117,10 +120,21 @@ to roundTwo [participants countParticipants] ;calculate expected utility and giv
       ]
 
 
-    ifelse expectedUtility < penaltySmothering [;negative values are being compared here
-      set testimony (credence + expectedPatchConsensus) / 2 ;split the difference with majority consensus
+    ifelse expectedUtility > utilitySmothering [;the bigger the value, the worse
+      ;----------------------------------------------------------------------------------------------------
+      ;----------------------------------------------------------------------------------------------------
+      ;Smothering
+      if smotheringType = "Split the difference with expected Patch Consensus"[
+        set testimony (credence + expectedPatchConsensus) / 2
+      ]
+
+      if smotheringType = "Utter expected Patch Consensus" [
+        set testimony expectedPatchConsensus
+      ]
       set smotheringCounter smotheringCounter + 1
       set smotheringCounterTotal smotheringCounterTotal + 1
+      ;----------------------------------------------------------------------------------------------------
+      ;----------------------------------------------------------------------------------------------------
     ][
       set testimony credence
     ]
@@ -154,13 +168,30 @@ ask participants [
         AND divergenceConsensus > relevantThreshold ;maybe add adjustable boldness?
         AND (divergence > relevantThreshold)
 
-        [; add here: its not just about divergence between agents. The patch consensus matters!
-          ask myself [set input input + (([credence] of myself + credence) / 2)]
+        [
+          ;----------------------------------------------------------------------------------------------------
+          ;----------------------------------------------------------------------------------------------------
+          ;Quieting
+          if quietingType = "Slot in own credence"[
+            ask myself [
+              set input input + credence
+            ]
+          ]
+          if quietingType = "Split the difference"[
+            ask myself [
+              set input input + (([testimony] of myself + credence) / 2)
+            ]
+          ]
+
+
           set quietingCounter quietingCounter + 1
           set quietingCounterTotal quietingCounterTotal + 1
-          ;add additional quieting effects here
+
+          ;add here the utility effect of being quietened
+          ;----------------------------------------------------------------------------------------------------
+          ;----------------------------------------------------------------------------------------------------
         ][
-            ask myself [set input input + [credence] of myself]
+            ask myself [set input input + [testimony] of myself]
         ]
       ]
       set input input / ((item 3 countParticipants) - 1)
@@ -288,16 +319,31 @@ end
 
 to setupGroup [groupNumber]
   create-people item groupNumber groupCounts[
+    ;-----------------------------------------------------------------------------------------
+    ;basic features
     set xcor random-xcor
     set ycor random-ycor
     set heading random 360
-    set credence objectiveChance + random-float 1 * (item groupNumber groupBiases) ;later this bias might be featured in experiments
-    set quietenTendency 0 ;with the learning function turned on, each individual might have their own tendency; until then just group values
-    set groupType groupNumber
-    set color item groupNumber groupColors
     set shape "person"
     set size 0.5
+    ;-----------------------------------------------------------------------------------------
+    ;group specific features
+    set credence objectiveChance + random-float 2 * (item groupNumber groupBiases) ; group bias influences distance from the truth
+    set quietenTendency random-float 2 * (item groupNumber GroupThresholds) ; group tendency influences individual threshold
+    set groupType groupNumber
+    set color item groupNumber groupColors
+    ;-----------------------------------------------------------------------------------------
+    ;utility function features
+    set utilityQuieting random-float (2 * penaltyPerPerson) ;this is how bad an act of quieting committed by this agent is
+    set utilitySmothering random-float (2 * penaltySmothering) ;this is how badly this agent suffers from smothering
+    ;-----------------------------------------------------------------------------------------
+    ;learning function features
+    ;coming soon
+    ;e.g. utility this round
   ]
+
+
+
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
@@ -368,7 +414,7 @@ countTypeB
 countTypeB
 10
 200
-70.0
+100.0
 10
 1
 NIL
@@ -383,7 +429,7 @@ biasTypeA
 biasTypeA
 -1
 1
--1.0
+-0.2
 0.1
 1
 NIL
@@ -398,7 +444,7 @@ biasTypeB
 biasTypeB
 -1
 1
-1.0
+0.2
 0.1
 1
 NIL
@@ -478,9 +524,9 @@ SLIDER
 93
 penaltyPerPerson
 penaltyPerPerson
--10
 0
--2.0
+10
+0.0
 1
 1
 NIL
@@ -489,9 +535,9 @@ HORIZONTAL
 TEXTBOX
 980
 27
-1238
-54
-Utility Function Values
+1313
+53
+Average Utility Function Values
 20
 0.0
 1
@@ -503,9 +549,9 @@ SLIDER
 129
 penaltySmothering
 penaltySmothering
--10
 0
--5.0
+10
+10.0
 1
 1
 NIL
@@ -535,7 +581,7 @@ quietenThresholdA
 quietenThresholdA
 0.1
 0.9
-0.3
+0.1
 0.1
 1
 NIL
@@ -550,7 +596,7 @@ quietenThresholdB
 quietenThresholdB
 0.1
 0.9
-0.9
+0.1
 0.1
 1
 NIL
@@ -663,10 +709,10 @@ B
 1
 
 SWITCH
-211
-615
-363
-648
+909
+691
+1061
+724
 allowInjustice
 allowInjustice
 0
@@ -674,10 +720,10 @@ allowInjustice
 -1000
 
 SLIDER
-663
-662
-866
-695
+213
+615
+416
+648
 experimentFrequency
 experimentFrequency
 0
@@ -703,6 +749,46 @@ NIL
 NIL
 NIL
 NIL
+1
+
+TEXTBOX
+601
+747
+751
+807
+|\n| Average\n| Values\n|
+12
+0.0
+1
+
+CHOOSER
+889
+641
+1089
+686
+quietingType
+quietingType
+"Slot in own credence" "Split the difference"
+0
+
+TEXTBOX
+1199
+63
+1349
+123
+|\n| Average\n| Values\n|
+12
+0.0
+1
+
+CHOOSER
+813
+731
+1233
+776
+smotheringType
+smotheringType
+"Utter expected Patch Consensus" "Split the difference with expected Patch Consensus"
 1
 
 @#$#@#$#@
