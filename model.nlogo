@@ -8,13 +8,13 @@ people-own[
   utilitySmothering ;how bad an instance of smothering is for this agent themself
   expectedPatchConsensus ;calculated in round 1 of each game, based on who else is present on the patch
   expectedDivergence ;calculated in round 1 of each game, based on the expectedPatchConsensus
-  expectedUtility ;calculated in round 2 of each game, based on expected patch consensus and expected divergence
   testimony ;is given in round two, based on expectedUtility and credence
-  input ;calculated in round 3, is used to update credence
+
   ;-------------------------------------------------------------------------------------------------------------------
   ;learning function
   averageTestimonies ;the average testimony given by members of this group to the agent
   numberTestimonies ;the number of testimonies from these groups
+  averageQuietingTendencies ;how big - on average - was this agents divergence from that groups testimony when they were quietened
   averageQuietingUtility ;how bad - on average - were the quieting instances this agent experienced
 ]
 
@@ -64,159 +64,45 @@ to playGame ;determines the agent-sets for the game and lets them play three rou
     let countParticipants (list (count turtles-here with [groupType = 0]) (count turtles-here with [groupType = 1]) (count turtles-here with [groupType = 2]) (count participants))
 
     if item 3 countParticipants > 1 [ ;no solo-games
-      roundOne participants countParticipants
-      roundTwo participants countParticipants
-      roundThree participants countParticipants
-    ]
-  ]
-end
-
-to roundOne [participants countParticipants] ;Calculate expected patch consensus and expected divergence
-  ask participants [
-
-    if patchConsensusType = "Add own credence" [
-      ifelse groupType = 0 [
-        set expectedPatchConsensus (credence + ((item 0 countParticipants) - 1) * (item 0 groupCredences) + (item 1 countParticipants) * (item 1 groupCredences) + (item 2 countParticipants) * (item 2 groupCredences))
-      ][
-        ifelse groupType = 1[
-          set expectedPatchConsensus (credence + (item 0 countParticipants) * (item 0 groupCredences) + ((item 1 countParticipants) - 1) * (item 1 groupCredences) + (item 2 countParticipants) * (item 2 groupCredences))
+      ;-------------------------------------------------------------------------------------------
+      ;-------------------------------------------------------------------------------------------
+      ;" round 1"
+      ask participants[
+        set expectedPatchConsensus calculateExpectedPatchConsensus self countParticipants
+        set expectedDivergence abs (expectedPatchConsensus - credence)
+      ]
+      ;-------------------------------------------------------------------------------------------
+      ;" round 2"
+      ask participants[
+        let expectedUtility (calculateExpectedUtility self countParticipants)
+        ifelse expectedUtility > utilitySmothering [;the bigger the value, the worse
+          smother self
         ][
-          set expectedPatchConsensus (credence + (item 0 countParticipants) * (item 0 groupCredences) + (item 1 countParticipants) * (item 1 groupCredences) + ((item 2 countParticipants) - 1) * (item 2 groupCredences))
+          set testimony credence ;give 'naive' testimony
         ]
       ]
-      set expectedPatchConsensus expectedPatchConsensus / (item 3 countParticipants)
-    ]
+      ;-------------------------------------------------------------------------------------------
+      ;" round 3"
+      let patchConsensus calculatePatchConsensus participants countParticipants
 
-    if patchConsensusType = "Ommit own credence" [
-      ifelse groupType = 0 [
-        set expectedPatchConsensus (((item 0 countParticipants) - 1) * (item 0 groupCredences) + (item 1 countParticipants) * (item 1 groupCredences) + (item 2 countParticipants) * (item 2 groupCredences)) / ((item 3 countParticipants) - 1)
-      ][
-        ifelse groupType = 1[
-          set expectedPatchConsensus ((item 0 countParticipants) * (item 0 groupCredences) + ((item 1 countParticipants) - 1) * (item 1 groupCredences) + (item 2 countParticipants) * (item 2 groupCredences)) / ((item 3 countParticipants) - 1)
-        ][
-          set expectedPatchConsensus ((item 0 countParticipants) * (item 0 groupCredences) + (item 1 countParticipants) * (item 1 groupCredences) + ((item 2 countParticipants) - 1) * (item 2 groupCredences)) / ((item 3 countParticipants) - 1)
-        ]
-      ]
-      set expectedPatchConsensus expectedPatchConsensus / ((item 3 countParticipants) - 1)
-    ]
-      set expectedDivergence abs (expectedPatchConsensus - credence)
-    ]
-end
-
-to roundTwo [participants countParticipants] ;calculate expected utility and give (possibly smothered) testimony;
       ask participants [
-      if groupType = 0[
-        set expectedUtility 0
+        let inputFromThisGame 0
+        ask other participants[
+          ifelse (shouldQuieten? myself self patchConsensus) = TRUE [
+            set inputFromThisGame quieten myself self inputFromThisGame
+          ][
+            ask myself [set inputFromThisGame inputFromThisGame + [testimony] of myself] ;add their testimony to the input
+          ]
 
-        if expectedDivergence > quietenThresholdB [
-          set expectedUtility expectedUtility + (item 1 countParticipants) * penaltyPerPerson
         ]
-        if expectedDivergence > quietenThresholdC [
-          set expectedUtility expectedUtility + (item 2 countParticipants) * penaltyPerPerson
-        ]
+        set inputFromThisGame inputFromThisGame / ((item 3 countParticipants) - 1)
+        set credence (inputFromThisGame + credence) / 2 ;update credence after collecting all the input from the game
       ]
-
-      if groupType = 1[
-        set expectedUtility 0
-
-        if expectedDivergence > quietenThresholdA [
-          set expectedUtility expectedUtility + (item 0 countParticipants) * penaltyPerPerson
-        ]
-        if expectedDivergence > quietenThresholdC [
-          set expectedUtility expectedUtility + (item 2 countParticipants) * penaltyPerPerson
-        ]
-      ]
-
-      if groupType = 2[
-        set expectedUtility 0
-
-        if expectedDivergence > quietenThresholdA [
-          set expectedUtility expectedUtility + (item 0 countParticipants) * penaltyPerPerson
-        ]
-        if expectedDivergence > quietenThresholdB [
-          set expectedUtility expectedUtility + (item 1 countParticipants) * penaltyPerPerson
-        ]
-      ]
-
-
-    ifelse expectedUtility > utilitySmothering [;the bigger the value, the worse
-      ;----------------------------------------------------------------------------------------------------------------------------
-      ;----------------------------------------------------------------------------------------------------------------------------
-      ;Smothering happens here
-      if smotheringType = "Split the difference with expected Patch Consensus"[
-        set testimony (credence + expectedPatchConsensus) / 2
-      ]
-
-      if smotheringType = "Utter expected Patch Consensus" [
-        set testimony expectedPatchConsensus
-      ]
-      set smotheringCounter smotheringCounter + 1
-
-      set smotheringCounterTotals replace-item groupType smotheringCounterTotals (item groupType smotheringCounterTotals + 1)
-      ;----------------------------------------------------------------------------------------------------------------------------
-      ;----------------------------------------------------------------------------------------------------------------------------
-    ][
-      set testimony credence
+     ;------------------------------------------------------------------------------------------------
     ]
   ]
 end
 
-to roundThree [participants countParticipants] ;calculate input, possibly quieten, update credences
-  let patchConsensus 0
-  ask participants [
-    set patchConsensus patchConsensus + testimony
-  ]
-  set patchConsensus patchConsensus / item 3 countParticipants
-
-
-  ask participants [
-    set input 0
-    let ownDivergenceConsensus abs (credence - patchConsensus)
-
-    ask other participants [
-        let divergenceConsensus abs (testimony - patchConsensus)
-        let divergence abs (testimony - [credence] of myself)
-        let groupTypeMyself [groupType] of myself
-        let relevantThreshold item groupType groupThresholds
-
-
-        ifelse
-        (groupType != groupTypeMyself) ;first condition for quieting
-        AND ownDivergenceConsensus < relevantThreshold
-        AND divergenceConsensus > relevantThreshold ;maybe add adjustable boldness?
-        AND (divergence > relevantThreshold)
-
-        [
-          ;-------------------------------------------------------------------------------------------------------------------------
-          ;-------------------------------------------------------------------------------------------------------------------------
-          ;Quieting
-          if quietingType = "Slot in own credence"[
-            ask myself [
-              set input input + credence
-            ]
-          ]
-          if quietingType = "Split the difference"[
-            ask myself [
-              set input input + (([testimony] of myself + credence) / 2)
-            ]
-          ]
-
-
-        set quietingCounter quietingCounter + 1
-        set quietingCounterTotals replace-item groupType quietingCounterTotals (item groupType quietingCounterTotals + 1) ;adds the quieting to the group type of the agent being quietened
-
-          ;add here the utility effect of being quietened
-          ;------------------------------------------------------------------------------------------------------------------------
-          ;------------------------------------------------------------------------------------------------------------------------
-        ][
-            ask myself [set input input + [testimony] of myself]
-        ]
-      ]
-      set input input / ((item 3 countParticipants) - 1)
-      set credence (input + credence) / 2
-
-  ]
-end
 
 to doExperiments ;agents slowly get closer to the truth on their own
   ask people[
@@ -232,7 +118,7 @@ to skipGame ;if the simulation disallows testimonial injustice, everyone just up
     let countParticipants count participants
 
     ask participants[
-      set input 0
+      let input 0
       if countParticipants > 1 [
         ask other participants[
           ask myself [
@@ -361,6 +247,157 @@ to setupGroup [groupNumber]
     ;coming soon
     ;e.g. utility this round
   ]
+end
+
+to-report shouldQuieten? [aggressor victim patchConsensus]
+  let divergenceAggressorConsensus 0
+  let divergenceVictimConsensus 0
+  let divergenceVictimAggressor 0
+  let relevantThreshold 0
+
+
+  ask aggressor [
+    set divergenceAggressorConsensus abs (credence - patchConsensus)
+
+    ask victim [
+      set divergenceVictimConsensus abs (testimony - patchConsensus)
+      set divergenceVictimAggressor abs (testimony - [credence] of myself)
+      set relevantThreshold [quietenTendency] of myself
+
+
+    ]
+
+
+  ]
+
+  ;conditions for quieting:
+  ifelse ([groupType] of aggressor != [groupType] of victim) ;different group identities
+  AND divergenceAggressorConsensus < divergenceVictimConsensus ;credence of aggressor is closer to the group consensus than testimony of victim
+  AND divergenceVictimAggressor > relevantThreshold ;testimony of victim is far enough from credence of aggressor
+  ;AND divergenseVictimConsensus > relevantThreshold ;testimony of victim is far enough from patch consensus
+  [report true][report false]
+
+
+end
+
+to-report quieten [aggressor victim input ]
+
+
+  ask victim[
+
+    if quietingType = "Slot in own credence"[
+      ask aggressor [
+        set input input + credence
+      ]
+    ]
+
+    if quietingType = "Split the difference"[
+      ask aggressor [
+        set input input + (([testimony] of myself + credence) / 2)
+      ]
+    ]
+
+    ;add utility effects and updating for the victim here
+
+    set quietingCounter quietingCounter + 1
+    set quietingCounterTotals replace-item groupType quietingCounterTotals (item groupType quietingCounterTotals + 1) ;adds the quieting to the group type of the agent being quietened
+
+
+  ]
+  report input
+end
+
+to smother [agent]
+  ask agent [
+    if smotheringType = "Split the difference with expected Patch Consensus"[
+      set testimony (credence + expectedPatchConsensus) / 2
+    ]
+
+    if smotheringType = "Utter expected Patch Consensus" [
+      set testimony expectedPatchConsensus
+    ]
+    set smotheringCounter smotheringCounter + 1
+
+    set smotheringCounterTotals replace-item groupType smotheringCounterTotals (item groupType smotheringCounterTotals + 1)
+  ]
+end
+
+to-report calculateExpectedPatchConsensus [agent countParticipants]
+  let result 0
+  ask agent [
+    if patchConsensusType = "Add own credence" [
+      ifelse groupType = 0 [
+        set expectedPatchConsensus (credence + ((item 0 countParticipants) - 1) * (item 0 groupCredences) + (item 1 countParticipants) * (item 1 groupCredences) + (item 2 countParticipants) * (item 2 groupCredences))
+      ][
+        ifelse groupType = 1[
+          set result (credence + (item 0 countParticipants) * (item 0 groupCredences) + ((item 1 countParticipants) - 1) * (item 1 groupCredences) + (item 2 countParticipants) * (item 2 groupCredences))
+        ][
+          set result (credence + (item 0 countParticipants) * (item 0 groupCredences) + (item 1 countParticipants) * (item 1 groupCredences) + ((item 2 countParticipants) - 1) * (item 2 groupCredences))
+        ]
+      ]
+      set result result / (item 3 countParticipants)
+    ]
+
+    if patchConsensusType = "Ommit own credence" [
+      ifelse groupType = 0 [
+        set result (((item 0 countParticipants) - 1) * (item 0 groupCredences) + (item 1 countParticipants) * (item 1 groupCredences) + (item 2 countParticipants) * (item 2 groupCredences)) / ((item 3 countParticipants) - 1)
+      ][
+        ifelse groupType = 1[
+          set result ((item 0 countParticipants) * (item 0 groupCredences) + ((item 1 countParticipants) - 1) * (item 1 groupCredences) + (item 2 countParticipants) * (item 2 groupCredences)) / ((item 3 countParticipants) - 1)
+        ][
+          set result ((item 0 countParticipants) * (item 0 groupCredences) + (item 1 countParticipants) * (item 1 groupCredences) + ((item 2 countParticipants) - 1) * (item 2 groupCredences)) / ((item 3 countParticipants) - 1)
+        ]
+      ]
+      set result result / ((item 3 countParticipants) - 1)
+    ]
+  ]
+  report result
+
+end
+
+to-report calculatePatchConsensus [participants countParticipants]
+  let result 0
+  ask participants [
+    set result result + testimony
+  ]
+  set result result / item 3 countParticipants
+  report result
+end
+
+to-report calculateExpectedUtility [agent countParticipants] ;calculated in round 2 of each game, based on expected patch consensus and expected divergence
+
+
+
+  let expectedUtility 0
+  ask agent[
+    if groupType = 0[
+      if expectedDivergence > quietenThresholdB [
+        set expectedUtility expectedUtility + (item 1 countParticipants) * penaltyPerPerson
+      ]
+      if expectedDivergence > quietenThresholdC [
+        set expectedUtility expectedUtility + (item 2 countParticipants) * penaltyPerPerson
+      ]
+    ]
+
+    if groupType = 1[
+      if expectedDivergence > quietenThresholdA [
+        set expectedUtility expectedUtility + (item 0 countParticipants) * penaltyPerPerson
+      ]
+      if expectedDivergence > quietenThresholdC [
+        set expectedUtility expectedUtility + (item 2 countParticipants) * penaltyPerPerson
+      ]
+    ]
+
+    if groupType = 2[
+      if expectedDivergence > quietenThresholdA [
+        set expectedUtility expectedUtility + (item 0 countParticipants) * penaltyPerPerson
+      ]
+      if expectedDivergence > quietenThresholdB [
+        set expectedUtility expectedUtility + (item 1 countParticipants) * penaltyPerPerson
+      ]
+    ]
+  ]
+  report expectedUtility
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
@@ -732,7 +769,7 @@ SWITCH
 612
 allowInjustice
 allowInjustice
-1
+0
 1
 -1000
 
