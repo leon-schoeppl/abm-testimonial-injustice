@@ -11,12 +11,18 @@ people-own[
   expectedUtility ;calculated in round 2 of each game, based on expected patch consensus and expected divergence
   testimony ;is given in round two, based on expectedUtility and credence
   input ;calculated in round 3, is used to update credence
+  ;-------------------------------------------------------------------------------------------------------------------
+  ;learning function
+  averageTestimonies ;the average testimony given by members of this group to the agent
+  numberTestimonies ;the number of testimonies from these groups
+  averageQuietingUtility ;how bad - on average - were the quieting instances this agent experienced
 ]
 
 globals[
-  objectiveChance ;value of the proposition that agents have credences about
+  objectiveChanceP ;value of the standpoint epistemological proposition that agents have credences about
+  objectiveChanceQ ;value of the independent proposition
   countPeople ;total number of agents in the simulation
-  ;------------------------------------------------------------------------------
+  ;-----------------------------------------------------------------------------------------------------------------
   ; groups 0 (A) , 1 (B) and 2 (C) (, and 3 is (if applicable) the total of all groups)
   groupBiases
   groupColors
@@ -25,13 +31,13 @@ globals[
   groupPercentages ;how many % of all agents are in groups A, B, C
   groupCounts
   groupThresholds ;this will later be a summary of individual thresholds, not purely a group value
-  ;--------------------------------------------------------------------------------
+  ;------------------------------------------------------------------------------------------------------------------
   ;Values for plotting and updating the outputs
   meanDistance ;how far - on average - are agents from the truth
   smotheringCounter ;how often did agents smother themselves this round?
   quietingCounter ;how often did agents quieten others this round?
-  smotheringCounterTotal ;how often did agents smother themselves in total so far?
-  quietingCounterTotal ;how often did agents quieten others in total so far?
+  smotheringCounterTotals ;how often did agents smother themselves in total so far? (list)
+  quietingCounterTotals ;how often did agents quieten others in total so far? (list)
 ]
 
 to setup ;called at the start of each simulation
@@ -134,8 +140,8 @@ to roundTwo [participants countParticipants] ;calculate expected utility and giv
 
 
     ifelse expectedUtility > utilitySmothering [;the bigger the value, the worse
-      ;----------------------------------------------------------------------------------------------------
-      ;----------------------------------------------------------------------------------------------------
+      ;----------------------------------------------------------------------------------------------------------------------------
+      ;----------------------------------------------------------------------------------------------------------------------------
       ;Smothering happens here
       if smotheringType = "Split the difference with expected Patch Consensus"[
         set testimony (credence + expectedPatchConsensus) / 2
@@ -145,9 +151,10 @@ to roundTwo [participants countParticipants] ;calculate expected utility and giv
         set testimony expectedPatchConsensus
       ]
       set smotheringCounter smotheringCounter + 1
-      set smotheringCounterTotal smotheringCounterTotal + 1
-      ;----------------------------------------------------------------------------------------------------
-      ;----------------------------------------------------------------------------------------------------
+
+      set smotheringCounterTotals replace-item groupType smotheringCounterTotals (item groupType smotheringCounterTotals + 1)
+      ;----------------------------------------------------------------------------------------------------------------------------
+      ;----------------------------------------------------------------------------------------------------------------------------
     ][
       set testimony credence
     ]
@@ -180,8 +187,8 @@ to roundThree [participants countParticipants] ;calculate input, possibly quiete
         AND (divergence > relevantThreshold)
 
         [
-          ;----------------------------------------------------------------------------------------------------
-          ;----------------------------------------------------------------------------------------------------
+          ;-------------------------------------------------------------------------------------------------------------------------
+          ;-------------------------------------------------------------------------------------------------------------------------
           ;Quieting
           if quietingType = "Slot in own credence"[
             ask myself [
@@ -195,12 +202,12 @@ to roundThree [participants countParticipants] ;calculate input, possibly quiete
           ]
 
 
-          set quietingCounter quietingCounter + 1
-          set quietingCounterTotal quietingCounterTotal + 1
+        set quietingCounter quietingCounter + 1
+        set quietingCounterTotals replace-item groupType quietingCounterTotals (item groupType quietingCounterTotals + 1) ;adds the quieting to the group type of the agent being quietened
 
           ;add here the utility effect of being quietened
-          ;----------------------------------------------------------------------------------------------------
-          ;----------------------------------------------------------------------------------------------------
+          ;------------------------------------------------------------------------------------------------------------------------
+          ;------------------------------------------------------------------------------------------------------------------------
         ][
             ask myself [set input input + [testimony] of myself]
         ]
@@ -214,7 +221,7 @@ end
 to doExperiments ;agents slowly get closer to the truth on their own
   ask people[
     ;needs a more realistic way of updating
-    set credence credence + (objectiveChance - credence)* 0.1
+    set credence credence + (objectiveChanceP - credence) * 0.1
     set credence (credence + item groupType groupBiases * 0.01 )
   ]
 end
@@ -257,7 +264,7 @@ to setupAgents
 
 to setupWorld
   resize-world (0 -(worldDimensions / 2)) (worldDimensions / 2) (0 -(worldDimensions / 2)) (worldDimensions / 2) ;only few patches, s.t. people can properly be sorted into games
-  set-patch-size 50
+  set-patch-size 450 / (worldDimensions + 1)
   ask patches [ ;checkerboard coloring
     ifelse (((pxcor + pycor) mod 2) = 0)[
       set pcolor grey
@@ -265,18 +272,24 @@ to setupWorld
       set pcolor white
     ]
   ]
-  set objectiveChance random-float 1
+  ifelse staticOneHalfP = FALSE [set objectiveChanceP random-float 1][set objectiveChanceP 0.5]
+
+  set quietingCounterTotals (list 0 0 0 0)
+  set smotheringCounterTotals (list 0 0 0 0)
 end
 
 to prepareGame ;agents move, group credences, testimony and distance from the truth are updated
   resetValues
+
+  set quietingCounterTotals replace-item 3 quietingCounterTotals (item 0 quietingCounterTotals + item 1 quietingCounterTotals + item 2 quietingCounterTotals)
+  set smotheringCounterTotals replace-item 3 smotheringCounterTotals (item 0 smotheringCounterTotals + item 1 smotheringCounterTotals + item 2 smotheringCounterTotals)
 
   ask people[
     if credence > 1 [set credence 1] ;just in case
     if credence < 0 [set credence 0]
     forward random 10
     left (random 10) - 5
-    set meanDistance meanDistance + abs (objectiveChance - credence)
+    set meanDistance meanDistance + abs (objectiveChanceP - credence)
 
     set groupCredences replace-item groupType groupCredences ((item groupType groupCredences) + credence)
     set groupTestimonies replace-item groupType groupTestimonies ((item groupType groupTestimonies) + testimony)
@@ -310,7 +323,7 @@ to printUpdate
   print(word "After round " ticks " the average credence in P is " (precision (item 0 groupCredences) 3) " for group A, " (precision (item 1 groupCredences) 3) " for group B, and " (precision (item 2 groupCredences) 3) " for group C.")
   print(word "The average testimony given by members of group A is " (precision (item 0 groupTestimonies) 3) ", while for members of group B it is " (precision (item 1 groupTestimonies) 3) " and for members of group C it is " (precision (item 2 groupTestimonies) 3) ".")
   print(word "The mean distance from the truth for the whole population of agents is currently " (precision meanDistance 3) ".")
-  print(word "This round " smotheringCounter " agents tailored their testimony (total of "smotheringCounterTotal ") , and  " quietingCounter " individual instances of quieting were committed (total of " quietingCounterTotal ").")
+  print(word "This round " smotheringCounter " agents tailored their testimony (total of "item 3 smotheringCounterTotals ") , and  " quietingCounter " individual instances of quieting were committed (total of " item 3 quietingCounterTotals ").")
 end
 
 to printSetup
@@ -318,7 +331,7 @@ to printSetup
   print "--------------------------------------------------------------------------------------"
   print "--------------------------------------------------------------------------------------"
   print(word "New simulation started @ "date-and-time)
-  print(word "In this simulation the objective value of the proposition is " (precision objectiveChance 3) ".")
+  print(word "In this simulation the objective value of the proposition is " (precision objectiveChanceP 3) ".")
   print (word "It contains " countPeople " agents, " (precision item 0 groupPercentages 1) "% group A, " (precision item 1 groupPercentages 1) "% group B and " (precision item 2 groupPercentages 1) "% group C.")
   print(word "The average credence in P is " (precision (item 0 groupCredences) 3) " for group A, " (precision (item 1 groupCredences) 3) " for group B, and " (precision (item 2 groupCredences) 3) " for group C.")
   print(word "The mean distance from the truth for the whole population of agents starts at " (precision meanDistance 3) ".")
@@ -326,24 +339,24 @@ end
 
 to setupGroup [groupNumber]
   create-people item groupNumber groupCounts[
-    ;-----------------------------------------------------------------------------------------
+    ;-----------------------------------------------------------------------------------------------------
     ;basic features
     set xcor random-xcor
     set ycor random-ycor
     set heading random 360
     set shape "person"
-    set size 0.5
-    ;-----------------------------------------------------------------------------------------
+    set size 0.3
+    ;-----------------------------------------------------------------------------------------------------
     ;group specific features
-    set credence objectiveChance + random-float 2 * (item groupNumber groupBiases) ; group bias influences distance from the truth
+    set credence objectiveChanceP + random-float 2 * (item groupNumber groupBiases) ; group bias influences distance from the truth
     set quietenTendency random-float 2 * (item groupNumber GroupThresholds) ; group tendency influences individual threshold
     set groupType groupNumber
     set color item groupNumber groupColors
-    ;-----------------------------------------------------------------------------------------
+    ;-----------------------------------------------------------------------------------------------------
     ;utility function features
     set utilityQuieting random-float (2 * penaltyPerPerson) ;this is how bad an act of quieting committed by this agent is
     set utilitySmothering random-float (2 * penaltySmothering) ;this is how badly this agent suffers from smothering
-    ;-----------------------------------------------------------------------------------------
+    ;-----------------------------------------------------------------------------------------------------
     ;learning function features
     ;coming soon
     ;e.g. utility this round
@@ -353,11 +366,11 @@ end
 GRAPHICS-WINDOW
 5
 10
-363
-369
+451
+457
 -1
 -1
-50.0
+64.28571428571429
 1
 10
 1
@@ -393,10 +406,10 @@ NIL
 HORIZONTAL
 
 BUTTON
-6
-578
-79
-611
+5
+477
+78
+510
 NIL
 setup
 NIL
@@ -455,10 +468,10 @@ NIL
 HORIZONTAL
 
 BUTTON
-85
-579
-148
-612
+84
+478
+147
+511
 NIL
 go
 NIL
@@ -472,10 +485,10 @@ NIL
 1
 
 PLOT
-572
-14
-928
-164
+466
+10
+757
+130
 Overall mean distance from the truth
 NIL
 NIL
@@ -490,10 +503,10 @@ PENS
 "default" 1.0 0 -16777216 true "" "plot meanDistance"
 
 PLOT
-571
-167
-930
-569
+467
+135
+792
+469
 Mean credences
 NIL
 NIL
@@ -505,16 +518,16 @@ true
 false
 "" ""
 PENS
-"default" 1.0 0 -16777216 true "" "plot objectiveChance"
+"default" 1.0 0 -16777216 true "" "plot objectiveChanceP"
 "Group A" 1.0 0 -955883 true "" "plot item 0 groupCredences"
 "Group B" 1.0 0 -13345367 true "" "plot item 1 groupCredences"
 "Group C" 1.0 0 -6459832 true "" "plot item 2 groupCredences"
 
 SWITCH
-7
-615
-209
-648
+6
+514
+208
+547
 employLearningFunction
 employLearningFunction
 1
@@ -522,50 +535,50 @@ employLearningFunction
 -1000
 
 SLIDER
-1004
-44
-1184
-77
+464
+505
+644
+538
 penaltyPerPerson
 penaltyPerPerson
 0
 10
-0.0
+2.0
 1
 1
 NIL
 HORIZONTAL
 
 TEXTBOX
-978
-15
-1311
-41
+438
+476
+771
+502
 Utility Function Values
 20
 0.0
 1
 
 SLIDER
-1002
-80
-1190
-113
+462
+541
+650
+574
 penaltySmothering
 penaltySmothering
 0
 10
-10.0
+5.0
 1
 1
 NIL
 HORIZONTAL
 
 SLIDER
-217
-579
-389
-612
+216
+478
+388
+511
 worldDimensions
 worldDimensions
 2
@@ -607,10 +620,10 @@ NIL
 HORIZONTAL
 
 PLOT
-932
-167
-1301
-569
+795
+135
+1088
+469
 Mean testimonies
 NIL
 NIL
@@ -622,7 +635,7 @@ true
 false
 "" ""
 PENS
-"default" 1.0 0 -16777216 true "" "plot objectiveChance"
+"default" 1.0 0 -16777216 true "" "plot objectiveChanceP"
 "Group A" 1.0 0 -955883 true "" "plot item 0 groupTestimonies"
 "Group B" 1.0 0 -13345367 true "" "plot item 1 groupTestimonies"
 "Group C" 1.0 0 -6459832 true "" "plot item 2 groupTestimonies"
@@ -713,21 +726,21 @@ B
 1
 
 SWITCH
-1021
-118
-1173
-151
+481
+579
+633
+612
 allowInjustice
 allowInjustice
-0
+1
 1
 -1000
 
 BUTTON
-152
-579
-215
-612
+151
+478
+214
+511
 NIL
 go
 T
@@ -751,65 +764,118 @@ TEXTBOX
 1
 
 CHOOSER
-967
-673
-1167
-718
+211
+631
+411
+676
 quietingType
 quietingType
 "Slot in own credence" "Split the difference"
 0
 
 TEXTBOX
-1200
-47
-1350
-107
+660
+508
+810
+568
 |\n| Average\n| Values\n|
 12
 0.0
 1
 
 CHOOSER
-757
-619
-1177
-664
+1
+577
+421
+622
 smotheringType
 smotheringType
 "Utter expected Patch Consensus" "Split the difference with expected Patch Consensus"
-1
+0
 
 SWITCH
-222
-616
-366
-649
+221
+515
+365
+548
 experiment?
 experiment?
-1
+0
 1
 -1000
 
 CHOOSER
-756
-674
-956
-719
+0
+632
+200
+677
 patchConsensusType
 patchConsensusType
 "Ommit own credence" "Add own credence"
 0
 
 TEXTBOX
-847
-589
-1239
-637
+91
+547
+483
+573
 Communication Settings
 20
 0.0
 1
+
+PLOT
+1092
+56
+1520
+262
+Quieting of groups
+NIL
+NIL
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"Total" 1.0 0 -16777216 true "" "plot item 3 quietingCounterTotals"
+"Group A" 1.0 0 -955883 true "" "plot item 0 quietingCounterTotals"
+"Group B" 1.0 0 -13345367 true "" "plot item 1 quietingCounterTotals"
+"Group C" 1.0 0 -6459832 true "" "plot item 2 quietingCounterTotals"
+
+PLOT
+1092
+264
+1520
+469
+Smotherings of groups
+NIL
+NIL
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"Total" 1.0 0 -16777216 true "" "plot item 3 smotheringCounterTotals"
+"Group A" 1.0 0 -955883 true "" "plot item 0 smotheringCounterTotals"
+"Group B" 1.0 0 -13345367 true "" "plot item 1 smotheringCounterTotals"
+"Group C" 1.0 0 -6459832 true "" "plot item 2 smotheringCounterTotals"
+
+SWITCH
+838
+494
+1001
+527
+staticOneHalfP
+staticOneHalfP
+0
+1
+-1000
 
 @#$#@#$#@
 ## WHAT IS IT?
