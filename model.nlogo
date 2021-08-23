@@ -12,11 +12,10 @@ people-own[
   ;-------------------------------------------------------------------------------------------------------------------
   ;learning function
   averageTestimonies ;the average testimony given by members of this group to the agent
-  numberTestimonies ;the number of testimonies from these groups
+  encounters  ;the number of testimonies from these groups
   averageQuietingTendencies ;how big - on average - was this agents divergence from that groups testimony when they were quietened
   quietingCount ;how often - per group - has this agent been quietened?
   averageQuietingUtility ;how bad - on average - were the quieting instances this agent experienced
-  encounters ;how many agents of each group has this agent met?
 ]
 
 globals[
@@ -250,7 +249,6 @@ to setupGroup [groupNumber]
     ;learning function features
     set averageTestimonies (list 0 0 0 0)
     set averageQuietingTendencies (list 0 0 0)
-    set numberTestimonies 0
     set averageQuietingUtility 0
     set quietingCount (list 0 0 0 0)
     set encounters (list 0 0 0)
@@ -315,16 +313,15 @@ to-report quieten [aggressor victim input ]
       ask aggressor [
         if learningCredencesType = "Update only on what one wants to hear"[;update with aggressor credence
           set averageTestimonies replace-item ([groupType] of victim) averageTestimonies ((item ([groupType] of victim) averageTestimonies * item ([groupType] of victim) encounters + credence) / (item ([groupType] of victim) encounters + 1))
+          set encounters replace-item ([groupType] of victim) encounters (item ([groupType] of victim) encounters + 1) ;the aggressor counts the encounter
 
 
           ]
         if learningCredencesType = "Update on the actual testimony"[;update with victim testimony
           updateKnowledgeOfCredences aggressor victim
-
         ]
-        set encounters replace-item ([groupType] of victim) encounters (item ([groupType] of victim) encounters + 1) ;the aggressor counts the encounter
 
-    ]
+      ]
   ]
 
 
@@ -353,6 +350,7 @@ end
 
 to updateKnowledgeOfCredences [aggressor victim]
   set averageTestimonies replace-item ([groupType] of victim) averageTestimonies ((item ([groupType] of victim) averageTestimonies * item ([groupType] of victim) encounters + [testimony] of victim) / (item ([groupType] of victim) encounters + 1))
+  set encounters replace-item ([groupType] of victim) encounters (item ([groupType] of victim) encounters + 1) ;the aggressor counts the encounter
 end
 
 to smother [agent]
