@@ -16,6 +16,7 @@ people-own[
   averageQuietingTendencies ;how big - on average - was this agents divergence from that groups testimony when they were quietened
   quietingCount ;how often - per group - has this agent been quietened?
   averageQuietingUtility ;how bad - on average - were the quieting instances this agent experienced
+  encounters ;how many agents of each group has this agent met?
 ]
 
 globals[
@@ -38,7 +39,7 @@ globals[
   quietingCounter ;how often did agents quieten others this round?
   smotheringCounterTotals ;how often did agents smother themselves in total so far? (list)
   quietingCounterTotals ;how often did agents quieten others in total so far? (list)
- ]
+  ]
 
 to setup ;called at the start of each simulation
   clear-all
@@ -92,6 +93,9 @@ to playGame ;determines the agent-sets for the game and lets them play three rou
             set inputFromThisGame quieten myself self inputFromThisGame
           ][
             ask myself [set inputFromThisGame inputFromThisGame + [testimony] of myself] ;add their testimony to the input
+            if employLearningFunction = TRUE [
+              updateKnowledgeOfCredences myself self
+            ]
           ]
 
         ]
@@ -249,6 +253,7 @@ to setupGroup [groupNumber]
     set numberTestimonies 0
     set averageQuietingUtility 0
     set quietingCount (list 0 0 0 0)
+    set encounters (list 0 0 0)
   ]
 end
 
@@ -306,7 +311,23 @@ to-report quieten [aggressor victim input ]
       set quietingCount replace-item 3 quietingCount (item 3 quietingCount + 1)
       set quietingCount replace-item ([groupType] of aggressor) quietingCount (item ([groupType] of aggressor) quietingCount + 1)
 
+      ;updates the aggressors information about the average credences of each group
+      ask aggressor [
+        if learningCredencesType = "Update only on what one wants to hear"[;update with aggressor credence
+          set averageTestimonies replace-item ([groupType] of victim) averageTestimonies ((item ([groupType] of victim) averageTestimonies * item ([groupType] of victim) encounters + credence) / (item ([groupType] of victim) encounters + 1))
+
+
+          ]
+        if learningCredencesType = "Update on the actual testimony"[;update with victim testimony
+          updateKnowledgeOfCredences aggressor victim
+
+        ]
+        set encounters replace-item ([groupType] of victim) encounters (item ([groupType] of victim) encounters + 1) ;the aggressor counts the encounter
+
     ]
+  ]
+
+
 
     if quietingType = "Slot in own credence"[
       ask aggressor [
@@ -328,6 +349,10 @@ to-report quieten [aggressor victim input ]
 
   ]
   report input
+end
+
+to updateKnowledgeOfCredences [aggressor victim]
+  set averageTestimonies replace-item ([groupType] of victim) averageTestimonies ((item ([groupType] of victim) averageTestimonies * item ([groupType] of victim) encounters + [testimony] of victim) / (item ([groupType] of victim) encounters + 1))
 end
 
 to smother [agent]
