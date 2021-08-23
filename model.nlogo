@@ -14,6 +14,7 @@ people-own[
   averageTestimonies ;the average testimony given by members of this group to the agent
   numberTestimonies ;the number of testimonies from these groups
   averageQuietingTendencies ;how big - on average - was this agents divergence from that groups testimony when they were quietened
+  quietingCount ;how often - per group - has this agent been quietened?
   averageQuietingUtility ;how bad - on average - were the quieting instances this agent experienced
 ]
 
@@ -247,7 +248,7 @@ to setupGroup [groupNumber]
     set averageQuietingTendencies (list 0 0 0)
     set numberTestimonies 0
     set averageQuietingUtility 0
-
+    set quietingCount (list 0 0 0 0)
   ]
 end
 
@@ -286,6 +287,26 @@ to-report quieten [aggressor victim input ]
 
 
   ask victim[
+
+
+    if employLearningFunction = TRUE [
+      ;update the agents experience about quieting tendencies of other agents
+      let difference 0
+      if learningTendenciesType = "Difference to credence"[
+        set difference abs (testimony - [credence] of aggressor)
+      ]
+      if learningTendenciesType = "Difference to testimony"[
+        set difference abs (testimony - [testimony] of aggressor)
+      ]
+      set averageQuietingTendencies replace-item ([groupType] of aggressor) averageQuietingTendencies (((item ([groupType] of aggressor) averageQuietingTendencies) * item ([groupType] of aggressor) quietingCount + difference) / (item ([groupType] of aggressor) quietingCount + 1))
+
+      ;updates the average severity of being quietened
+      set averageQuietingUtility (averageQuietingUtility * item 3 quietingCount + [utilityQuieting] of aggressor) / (item 3 quietingCount + 1)
+
+      set quietingCount replace-item 3 quietingCount (item 3 quietingCount + 1)
+      set quietingCount replace-item ([groupType] of aggressor) quietingCount (item ([groupType] of aggressor) quietingCount + 1)
+
+    ]
 
     if quietingType = "Slot in own credence"[
       ask aggressor [
@@ -588,10 +609,10 @@ PENS
 "Group C" 1.0 0 -6459832 true "" "plot item 2 groupCredences"
 
 SWITCH
-6
-514
-208
-547
+1122
+512
+1324
+545
 employLearningFunction
 employLearningFunction
 0
@@ -614,11 +635,11 @@ NIL
 HORIZONTAL
 
 TEXTBOX
-712
-481
-1045
-507
-Utility Function Values
+758
+475
+923
+501
+Utility Function
 20
 0.0
 1
@@ -858,10 +879,10 @@ smotheringType
 0
 
 SWITCH
-221
-515
-365
-548
+1139
+553
+1283
+586
 experiment?
 experiment?
 0
@@ -876,7 +897,7 @@ CHOOSER
 patchConsensusType
 patchConsensusType
 "Ommit own credence" "Add own credence"
-1
+0
 
 TEXTBOX
 91
@@ -942,14 +963,34 @@ staticOneHalfP
 -1000
 
 CHOOSER
-372
-516
-706
-561
-learningType
-learningType
+1094
+592
+1380
+637
+learningCredencesType
+learningCredencesType
 "Update only on what one wants to hear" "Update on the actual testimony"
 0
+
+CHOOSER
+1123
+646
+1340
+691
+learningTendenciesType
+learningTendenciesType
+"Difference to credence" "Difference to testimony"
+1
+
+TEXTBOX
+1142
+482
+1330
+509
+Learning Function
+20
+0.0
+1
 
 @#$#@#$#@
 ## WHAT IS IT?
