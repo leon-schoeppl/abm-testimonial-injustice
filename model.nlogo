@@ -9,7 +9,6 @@ people-own[
   expectedPatchConsensus ;calculated in round 1 of each game, based on who else is present on the patch
   expectedDivergence ;calculated in round 1 of each game, based on the expectedPatchConsensus
   testimony ;is given in round two, based on expectedUtility and credence
-
   ;-------------------------------------------------------------------------------------------------------------------
   ;learning function
   averageTestimonies ;the average testimony given by members of this group to the agent
@@ -30,7 +29,7 @@ globals[
   groupTestimonies
   groupPercentages ;how many % of all agents are in groups A, B, C
   groupCounts
-  groupThresholds ;this will later be a summary of individual thresholds, not purely a group value
+  groupThresholds
   ;------------------------------------------------------------------------------------------------------------------
   ;Values for plotting and updating the outputs
   meanDistance ;how far - on average - are agents from the truth
@@ -38,7 +37,7 @@ globals[
   quietingCounter ;how often did agents quieten others this round?
   smotheringCounterTotals ;how often did agents smother themselves in total so far? (list)
   quietingCounterTotals ;how often did agents quieten others in total so far? (list)
-]
+ ]
 
 to setup ;called at the start of each simulation
   clear-all
@@ -244,8 +243,11 @@ to setupGroup [groupNumber]
     set utilitySmothering random-float (2 * penaltySmothering) ;this is how badly this agent suffers from smothering
     ;-----------------------------------------------------------------------------------------------------
     ;learning function features
-    ;coming soon
-    ;e.g. utility this round
+    set averageTestimonies (list 0 0 0 0)
+    set averageQuietingTendencies (list 0 0 0)
+    set numberTestimonies 0
+    set averageQuietingUtility 0
+
   ]
 end
 
@@ -324,33 +326,48 @@ end
 
 to-report calculateExpectedPatchConsensus [agent countParticipants]
   let result 0
-  ask agent [
-    if patchConsensusType = "Add own credence" [
-      ifelse groupType = 0 [
-        set expectedPatchConsensus (credence + ((item 0 countParticipants) - 1) * (item 0 groupCredences) + (item 1 countParticipants) * (item 1 groupCredences) + (item 2 countParticipants) * (item 2 groupCredences))
-      ][
-        ifelse groupType = 1[
-          set result (credence + (item 0 countParticipants) * (item 0 groupCredences) + ((item 1 countParticipants) - 1) * (item 1 groupCredences) + (item 2 countParticipants) * (item 2 groupCredences))
-        ][
-          set result (credence + (item 0 countParticipants) * (item 0 groupCredences) + (item 1 countParticipants) * (item 1 groupCredences) + ((item 2 countParticipants) - 1) * (item 2 groupCredences))
-        ]
-      ]
-      set result result / (item 3 countParticipants)
+
+
+    ask agent [
+    let data 0
+    ifelse employLearningFunction = TRUE [ ;Do the agents have access to the objective averages, or do they have to rely on personal experience?
+      set data averageTestimonies
+    ][
+      set data groupCredences
     ]
 
-    if patchConsensusType = "Ommit own credence" [
-      ifelse groupType = 0 [
-        set result (((item 0 countParticipants) - 1) * (item 0 groupCredences) + (item 1 countParticipants) * (item 1 groupCredences) + (item 2 countParticipants) * (item 2 groupCredences)) / ((item 3 countParticipants) - 1)
-      ][
-        ifelse groupType = 1[
-          set result ((item 0 countParticipants) * (item 0 groupCredences) + ((item 1 countParticipants) - 1) * (item 1 groupCredences) + (item 2 countParticipants) * (item 2 groupCredences)) / ((item 3 countParticipants) - 1)
+
+      if patchConsensusType = "Add own credence" [
+        ifelse groupType = 0 [
+          set expectedPatchConsensus (credence + ((item 0 countParticipants) - 1) * (item 0 data) + (item 1 countParticipants) * (item 1 data) + (item 2 countParticipants) * (item 2 data))
         ][
-          set result ((item 0 countParticipants) * (item 0 groupCredences) + (item 1 countParticipants) * (item 1 groupCredences) + ((item 2 countParticipants) - 1) * (item 2 groupCredences)) / ((item 3 countParticipants) - 1)
+          ifelse groupType = 1[
+            set result (credence + (item 0 countParticipants) * (item 0 data) + ((item 1 countParticipants) - 1) * (item 1 data) + (item 2 countParticipants) * (item 2 data))
+          ][
+            set result (credence + (item 0 countParticipants) * (item 0 data) + (item 1 countParticipants) * (item 1 data) + ((item 2 countParticipants) - 1) * (item 2 data))
+          ]
         ]
+        set result result / (item 3 countParticipants)
       ]
-      set result result / ((item 3 countParticipants) - 1)
+
+      if patchConsensusType = "Ommit own credence" [
+        ifelse groupType = 0 [
+          set result (((item 0 countParticipants) - 1) * (item 0 data) + (item 1 countParticipants) * (item 1 data) + (item 2 countParticipants) * (item 2 data)) / ((item 3 countParticipants) - 1)
+        ][
+          ifelse groupType = 1[
+            set result ((item 0 countParticipants) * (item 0 data) + ((item 1 countParticipants) - 1) * (item 1 data) + (item 2 countParticipants) * (item 2 data)) / ((item 3 countParticipants) - 1)
+          ][
+            set result ((item 0 countParticipants) * (item 0 data) + (item 1 countParticipants) * (item 1 data) + ((item 2 countParticipants) - 1) * (item 2 data)) / ((item 3 countParticipants) - 1)
+          ]
+        ]
+        set result result / ((item 3 countParticipants) - 1)
+      ]
+
+    ; possibly add additional versions of calculating the Patch consensus here
+
     ]
-  ]
+
+
   report result
 
 end
@@ -364,36 +381,46 @@ to-report calculatePatchConsensus [participants countParticipants]
   report result
 end
 
-to-report calculateExpectedUtility [agent countParticipants] ;calculated in round 2 of each game, based on expected patch consensus and expected divergence
-
-
-
+to-report calculateExpectedUtility [agent countParticipants] ;calculated in round 2 of each game, based on expected patch consensus and expected divergence ;add more conditions here
   let expectedUtility 0
+
   ask agent[
+    let relevantPenalty 0
+    let relevantThresholds 0
+
+    ifelse employLearningFunction = TRUE [ ;Do the agents have access to the objective averages, or do they have to rely on personal experience?
+      set relevantPenalty averageQuietingUtility
+      set relevantThresholds averageQuietingTendencies
+    ][
+      set relevantPenalty penaltyPerPerson
+      set relevantThresholds groupThresholds
+    ]
+
     if groupType = 0[
-      if expectedDivergence > quietenThresholdB [
-        set expectedUtility expectedUtility + (item 1 countParticipants) * penaltyPerPerson
+      if expectedDivergence > item 1 relevantThresholds ;and abs (credence - item 1 groupCredences) > quietenThresholdB
+      [
+        set expectedUtility expectedUtility + (item 1 countParticipants) * relevantPenalty
       ]
-      if expectedDivergence > quietenThresholdC [
-        set expectedUtility expectedUtility + (item 2 countParticipants) * penaltyPerPerson
+      if expectedDivergence > item 2 relevantThresholds [
+        set expectedUtility expectedUtility + (item 2 countParticipants) * relevantPenalty
       ]
     ]
 
     if groupType = 1[
-      if expectedDivergence > quietenThresholdA [
-        set expectedUtility expectedUtility + (item 0 countParticipants) * penaltyPerPerson
+      if expectedDivergence > item 0 relevantThresholds [
+        set expectedUtility expectedUtility + (item 0 countParticipants) * relevantPenalty
       ]
-      if expectedDivergence > quietenThresholdC [
-        set expectedUtility expectedUtility + (item 2 countParticipants) * penaltyPerPerson
+      if expectedDivergence > item 2 relevantThresholds [
+        set expectedUtility expectedUtility + (item 2 countParticipants) * relevantPenalty
       ]
     ]
 
     if groupType = 2[
-      if expectedDivergence > quietenThresholdA [
-        set expectedUtility expectedUtility + (item 0 countParticipants) * penaltyPerPerson
+      if expectedDivergence > item 0 relevantThresholds [
+        set expectedUtility expectedUtility + (item 0 countParticipants) * relevantPenalty
       ]
-      if expectedDivergence > quietenThresholdB [
-        set expectedUtility expectedUtility + (item 1 countParticipants) * penaltyPerPerson
+      if expectedDivergence > item 1 relevantThresholds [
+        set expectedUtility expectedUtility + (item 1 countParticipants) * relevantPenalty
       ]
     ]
   ]
@@ -403,8 +430,8 @@ end
 GRAPHICS-WINDOW
 5
 10
-451
-457
+463
+469
 -1
 -1
 64.28571428571429
@@ -468,7 +495,7 @@ countTypeB
 countTypeB
 10
 200
-100.0
+50.0
 10
 1
 NIL
@@ -567,15 +594,15 @@ SWITCH
 547
 employLearningFunction
 employLearningFunction
-1
+0
 1
 -1000
 
 SLIDER
-464
-505
-644
-538
+738
+510
+918
+543
 penaltyPerPerson
 penaltyPerPerson
 0
@@ -587,20 +614,20 @@ NIL
 HORIZONTAL
 
 TEXTBOX
-438
-476
-771
-502
+712
+481
+1045
+507
 Utility Function Values
 20
 0.0
 1
 
 SLIDER
-462
-541
-650
-574
+736
+546
+924
+579
 penaltySmothering
 penaltySmothering
 0
@@ -763,10 +790,10 @@ B
 1
 
 SWITCH
-481
-579
-633
-612
+755
+584
+907
+617
 allowInjustice
 allowInjustice
 0
@@ -811,10 +838,10 @@ quietingType
 0
 
 TEXTBOX
-660
-508
-810
-568
+934
+513
+1084
+573
 |\n| Average\n| Values\n|
 12
 0.0
@@ -849,7 +876,7 @@ CHOOSER
 patchConsensusType
 patchConsensusType
 "Ommit own credence" "Add own credence"
-0
+1
 
 TEXTBOX
 91
@@ -904,15 +931,25 @@ PENS
 "Group C" 1.0 0 -6459832 true "" "plot item 2 smotheringCounterTotals"
 
 SWITCH
-838
-494
-1001
-527
+393
+477
+556
+510
 staticOneHalfP
 staticOneHalfP
 0
 1
 -1000
+
+CHOOSER
+372
+516
+706
+561
+learningType
+learningType
+"Update only on what one wants to hear" "Update on the actual testimony"
+0
 
 @#$#@#$#@
 ## WHAT IS IT?
