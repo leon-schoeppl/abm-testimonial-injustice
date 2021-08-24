@@ -110,7 +110,7 @@ to playGame ;determines the agent-sets for the game and lets them play three rou
 
         ]
         set inputFromThisGame inputFromThisGame / relevantParticipantCount
-        set credence (inputFromThisGame * weightOfConsensus) + (credence * (1 - weightOfConsensus));update credence after collecting all the input from the game
+        set credence (inputFromThisGame * weightOfInput) + (credence * (1 - weightOfInput));update credence after collecting all the input from the game
       ]
      ;------------------------------------------------------------------------------------------------
     ]
@@ -144,8 +144,8 @@ to skipGame ;if the simulation disallows testimonial injustice, everyone just up
             set input input + [credence] of myself
           ]
         ]
-          set input input / (countParticipants - 1)
-          set credence (input + credence) / 2
+        set input input / (countParticipants - 1)
+        set credence (input * weightOfInput) + (credence * (1 - weightOfInput));update credence after collecting all the input from the game
 
       ]
     ]
@@ -1088,12 +1088,12 @@ experimentType
 0
 
 SLIDER
-698
-674
-892
-707
-weightOfConsensus
-weightOfConsensus
+1141
+810
+1335
+843
+weightOfInput
+weightOfInput
 0.1
 0.9
 0.1
