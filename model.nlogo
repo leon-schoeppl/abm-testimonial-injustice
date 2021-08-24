@@ -110,7 +110,7 @@ to playGame ;determines the agent-sets for the game and lets them play three rou
 
         ]
         set inputFromThisGame inputFromThisGame / relevantParticipantCount
-        set credence (inputFromThisGame + credence) / 2 ;update credence after collecting all the input from the game
+        set credence (inputFromThisGame * weightOfConsensus) + (credence * (1 - weightOfConsensus));update credence after collecting all the input from the game
       ]
      ;------------------------------------------------------------------------------------------------
     ]
@@ -1086,6 +1086,21 @@ experimentType
 experimentType
 "Custom" "Douven"
 0
+
+SLIDER
+698
+674
+892
+707
+weightOfConsensus
+weightOfConsensus
+0.1
+0.9
+0.1
+0.1
+1
+NIL
+HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?
