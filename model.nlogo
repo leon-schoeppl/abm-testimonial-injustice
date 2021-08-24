@@ -110,8 +110,13 @@ end
 to doExperiments ;agents slowly get closer to the truth on their own
   ask people[
     ;needs a more realistic way of updating
-    set credence credence + (objectiveChanceP - credence) * 0.1
-    set credence (credence + item groupType groupBiases * 0.01 )
+    if experimentType = "Custom"[
+      set credence credence + (objectiveChanceP - credence) * 0.1
+      set credence (credence + item groupType groupBiases * 0.01 )
+    ]
+    if experimentType = "Douven"[
+      ;put in later
+    ]
   ]
 end
 
@@ -247,11 +252,24 @@ to setupGroup [groupNumber]
     set utilitySmothering random-float (2 * penaltySmothering) ;this is how badly this agent suffers from smothering
     ;-----------------------------------------------------------------------------------------------------
     ;learning function features
-    set averageTestimonies (list 0 0 0 0)
-    set averageQuietingTendencies (list 0 0 0)
-    set averageQuietingUtility 0
     set quietingCount (list 0 0 0 0)
     set encounters (list 0 0 0)
+    if initialValues = "All 0"[
+      set averageTestimonies (list 0 0 0 0)
+      set averageQuietingTendencies (list 0 0 0)
+      set averageQuietingUtility 0
+    ]
+    if initialValues = "Custom" [
+      set averageTestimonies (list 0.5 0.5 0.5 0.5)
+      set averageQuietingTendencies (list 0.5 0.5 0.5)
+      set averageQuietingUtility 2
+    ]
+    if initialValues = "All random" [
+      set averageTestimonies (list 0.5 0.5 0.5 0.5)
+      let i random-float 1
+      set averageQuietingTendencies (list i i i)
+      set averageQuietingUtility random 10
+    ]
   ]
 end
 
@@ -840,7 +858,7 @@ SWITCH
 617
 allowInjustice
 allowInjustice
-0
+1
 1
 -1000
 
@@ -920,7 +938,7 @@ CHOOSER
 patchConsensusType
 patchConsensusType
 "Ommit own credence" "Add own credence"
-0
+1
 
 TEXTBOX
 91
@@ -1003,7 +1021,7 @@ CHOOSER
 learningTendenciesType
 learningTendenciesType
 "Difference to credence" "Difference to testimony"
-1
+0
 
 TEXTBOX
 1142
@@ -1014,6 +1032,26 @@ Learning Function
 20
 0.0
 1
+
+CHOOSER
+1161
+702
+1299
+747
+initialValues
+initialValues
+"All 0" "All random" "Custom"
+0
+
+CHOOSER
+1163
+758
+1302
+803
+experimentType
+experimentType
+"Custom" "Douven"
+0
 
 @#$#@#$#@
 ## WHAT IS IT?
