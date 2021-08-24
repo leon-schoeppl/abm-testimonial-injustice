@@ -86,19 +86,30 @@ to playGame ;determines the agent-sets for the game and lets them play three rou
       let patchConsensus calculatePatchConsensus participants countParticipants
 
       ask participants [
+        let relevantParticipantCount ((item 3 countParticipants) - 1)
         let inputFromThisGame 0
+
         ask other participants[
           ifelse (shouldQuieten? myself self patchConsensus) = TRUE [
             set inputFromThisGame quieten myself self inputFromThisGame
+            if quietingType = "Ignore fully" AND relevantParticipantCount > 1 [
+              set relevantParticipantCount relevantParticipantCount - 1
+            ]
           ][
-            ask myself [set inputFromThisGame inputFromThisGame + [testimony] of myself] ;add their testimony to the input
-            if employLearningFunction = TRUE [
-              updateKnowledgeOfCredences myself self
+
+            ifelse [testimony] of myself = "NA" [
+              set relevantParticipantCount relevantParticipantCount - 1
+            ][
+              ask myself [set inputFromThisGame inputFromThisGame + [testimony] of myself] ;add their testimony to the input
+
+              if employLearningFunction = TRUE [
+                updateKnowledgeOfCredences myself self
+              ]
             ]
           ]
 
         ]
-        set inputFromThisGame inputFromThisGame / ((item 3 countParticipants) - 1)
+        set inputFromThisGame inputFromThisGame / relevantParticipantCount
         set credence (inputFromThisGame + credence) / 2 ;update credence after collecting all the input from the game
       ]
      ;------------------------------------------------------------------------------------------------
@@ -279,11 +290,15 @@ to-report shouldQuieten? [aggressor victim patchConsensus]
   let divergenceVictimAggressor 0
   let relevantThreshold 0
 
+  if [testimony] of victim = "NA" [
+        report FALSE
+      ]
 
   ask aggressor [
     set divergenceAggressorConsensus abs (credence - patchConsensus)
 
     ask victim [
+
       set divergenceVictimConsensus abs (testimony - patchConsensus)
       set divergenceVictimAggressor abs (testimony - [credence] of myself)
       set relevantThreshold [quietenTendency] of myself
@@ -356,7 +371,12 @@ to-report quieten [aggressor victim input ]
       ]
     ]
 
-    ;add utility effects and updating for the victim here
+    if quietingType = "Ignore fully"[
+      ask aggressor [
+        ;count down
+      ]
+    ]
+
 
     set quietingCounter quietingCounter + 1
     set quietingCounterTotals replace-item groupType quietingCounterTotals (item groupType quietingCounterTotals + 1) ;adds the quieting to the group type of the agent being quietened
@@ -380,6 +400,15 @@ to smother [agent]
     if smotheringType = "Utter expected Patch Consensus" [
       set testimony expectedPatchConsensus
     ]
+    if smotheringType = "Withold testimony" [
+      set testimony "NA"
+      ;do nothing
+      ;set testimony = "NA"
+      ;then I would have to discount NAs from the patch consensus
+      ;NAs don't get quietened
+    ]
+
+
     set smotheringCounter smotheringCounter + 1
 
     set smotheringCounterTotals replace-item groupType smotheringCounterTotals (item groupType smotheringCounterTotals + 1)
@@ -436,10 +465,15 @@ end
 
 to-report calculatePatchConsensus [participants countParticipants]
   let result 0
+  let relevantParticipantCount item 3 countParticipants
   ask participants [
+    ifelse testimony = "NA"[
+      set relevantParticipantCount relevantParticipantCount - 1
+    ][
     set result result + testimony
+    ]
   ]
-  set result result / item 3 countParticipants
+  set result result / relevantParticipantCount
   report result
 end
 
@@ -518,9 +552,9 @@ ticks
 
 SLIDER
 1
-709
+744
 195
-742
+777
 countTypeA
 countTypeA
 10
@@ -550,9 +584,9 @@ NIL
 
 SLIDER
 197
-709
+744
 393
-742
+777
 countTypeB
 countTypeB
 10
@@ -565,9 +599,9 @@ HORIZONTAL
 
 SLIDER
 1
-744
+779
 195
-777
+812
 biasTypeA
 biasTypeA
 -1
@@ -580,9 +614,9 @@ HORIZONTAL
 
 SLIDER
 197
-744
+779
 393
-777
+812
 biasTypeB
 biasTypeB
 -1
@@ -717,9 +751,9 @@ HORIZONTAL
 
 SLIDER
 1
-778
+813
 195
-811
+846
 quietenThresholdA
 quietenThresholdA
 0.1
@@ -732,9 +766,9 @@ HORIZONTAL
 
 SLIDER
 197
-778
+813
 393
-811
+846
 quietenThresholdB
 quietenThresholdB
 0.1
@@ -767,10 +801,10 @@ PENS
 "Group C" 1.0 0 -6459832 true "" "plot item 2 groupTestimonies"
 
 TEXTBOX
-220
-815
-370
-839
+223
+685
+373
+709
 Group Setup
 20
 0.0
@@ -778,9 +812,9 @@ Group Setup
 
 SLIDER
 395
-709
+744
 593
-742
+777
 countTypeC
 countTypeC
 0
@@ -793,9 +827,9 @@ HORIZONTAL
 
 SLIDER
 395
-744
+779
 593
-777
+812
 biasTypeC
 biasTypeC
 -1
@@ -808,9 +842,9 @@ HORIZONTAL
 
 TEXTBOX
 83
-678
+713
 100
-702
+737
 A
 20
 25.0
@@ -818,9 +852,9 @@ A
 
 SLIDER
 395
-778
+813
 593
-811
+846
 quietenThresholdC
 quietenThresholdC
 0
@@ -833,9 +867,9 @@ HORIZONTAL
 
 TEXTBOX
 480
-679
+714
 514
-703
+738
 [C]
 20
 35.0
@@ -843,9 +877,9 @@ TEXTBOX
 
 TEXTBOX
 275
-676
+711
 290
-700
+735
 B
 20
 105.0
@@ -858,7 +892,7 @@ SWITCH
 617
 allowInjustice
 allowInjustice
-1
+0
 1
 -1000
 
@@ -881,9 +915,9 @@ NIL
 
 TEXTBOX
 601
-747
+782
 751
-807
+842
 |\n| Average\n| Values\n|
 12
 0.0
@@ -896,8 +930,8 @@ CHOOSER
 676
 quietingType
 quietingType
-"Slot in own credence" "Split the difference"
-0
+"Ignore fully" "Slot in own credence" "Split the difference"
+1
 
 TEXTBOX
 934
@@ -916,8 +950,8 @@ CHOOSER
 622
 smotheringType
 smotheringType
-"Utter expected Patch Consensus" "Split the difference with expected Patch Consensus"
-0
+"Utter expected Patch Consensus" "Withhold testimony" "Split the difference with expected Patch Consensus"
+1
 
 SWITCH
 1139
@@ -926,7 +960,7 @@ SWITCH
 586
 experiment?
 experiment?
-0
+1
 1
 -1000
 
@@ -1041,7 +1075,7 @@ CHOOSER
 initialValues
 initialValues
 "All 0" "All random" "Custom"
-0
+2
 
 CHOOSER
 1163
