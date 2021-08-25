@@ -13,6 +13,8 @@ people-own[
   ;learning function
   averageTestimonies ;the average testimony given by members of this group to the agent
   encounters  ;the number of testimonies from these groups
+  averageQuietingDelta
+  averageNonQuietingDelta
   averageQuietingTendencies ;how big - on average - was this agents divergence from that groups testimony when they were quietened
   quietingCount ;how often - per group - has this agent been quietened?
   averageQuietingUtility ;how bad - on average - were the quieting instances this agent experienced
@@ -107,7 +109,7 @@ to playGame ;determines the agent-sets for the game and lets them play three rou
               set relevantParticipantCount relevantParticipantCount - 1
             ]
           ][
-
+            updateNonQuietingDelta myself self
             ifelse [testimony] of myself = "NA" [
               set relevantParticipantCount relevantParticipantCount - 1
             ][
@@ -202,6 +204,9 @@ to prepareGame ;agents move, group credences, testimony and distance from the tr
   set smotheringCounterTotals replace-item 3 smotheringCounterTotals (item 0 smotheringCounterTotals + item 1 smotheringCounterTotals + item 2 smotheringCounterTotals)
 
   ask people[
+    set averageQuietingTendencies replace-item 0 averageQuietingTendencies abs (item 0 averageQuietingDelta - item 0 averageNonQuietingDelta)
+    set averageQuietingTendencies replace-item 1 averageQuietingTendencies abs (item 1 averageQuietingDelta - item 1 averageNonQuietingDelta)
+    set averageQuietingTendencies replace-item 2 averageQuietingTendencies abs (item 2 averageQuietingDelta - item 2 averageNonQuietingDelta)
     if credence > 1 [set credence 1] ;just in case
     if credence < 0 [set credence 0]
     forward random 10
@@ -335,20 +340,25 @@ to setupGroup [groupNumber]
     ;learning function features
     set quietingCount (list 0 0 0 0)
     set encounters (list 0 0 0)
+    set averageQuietingTendencies (list 0 0 0)
+
     if initialValues = "All 0"[
       set averageTestimonies (list 0 0 0 0)
-      set averageQuietingTendencies (list 0 0 0)
+      set averageQuietingDelta (list 0 0 0)
+      set averageNonQuietingDelta (list 0 0 0)
       set averageQuietingUtility 0
     ]
     if initialValues = "Custom" [
       set averageTestimonies (list 0.5 0.5 0.5 0.5)
-      set averageQuietingTendencies (list 0.5 0.5 0.5)
+      set averageQuietingDelta (list 0 0 0)
+      set averageNonQuietingDelta (list 0 0 0)
       set averageQuietingUtility 2
     ]
     if initialValues = "All random" [
       set averageTestimonies (list 0.5 0.5 0.5 0.5)
       let i random-float 1
-      set averageQuietingTendencies (list i i i)
+      set averageQuietingDelta (list i i i)
+      set averageNonQuietingDelta (list 0 0 0)
       set averageQuietingUtility random 10
     ]
   ]
@@ -404,7 +414,7 @@ to-report quieten [aggressor victim input ]
       if learningTendenciesType = "Difference to testimony"[
         set difference abs (testimony - [testimony] of aggressor)
       ]
-      set averageQuietingTendencies replace-item ([groupType] of aggressor) averageQuietingTendencies (((item ([groupType] of aggressor) averageQuietingTendencies) * item ([groupType] of aggressor) quietingCount + difference) / (item ([groupType] of aggressor) quietingCount + 1))
+      set averageQuietingDelta replace-item ([groupType] of aggressor) averageQuietingDelta (((item ([groupType] of aggressor) averageQuietingDelta) * item ([groupType] of aggressor) quietingCount + difference) / (item ([groupType] of aggressor) quietingCount + 1))
 
       ;updates the average severity of being quietened
       set averageQuietingUtility (averageQuietingUtility * item 3 quietingCount + [utilityQuieting] of aggressor) / (item 3 quietingCount + 1)
@@ -417,15 +427,12 @@ to-report quieten [aggressor victim input ]
         if learningCredencesType = "Update only on what one wants to hear"[;update with aggressor credence
           set averageTestimonies replace-item ([groupType] of victim) averageTestimonies ((item ([groupType] of victim) averageTestimonies * item ([groupType] of victim) encounters + credence) / (item ([groupType] of victim) encounters + 1))
           set encounters replace-item ([groupType] of victim) encounters (item ([groupType] of victim) encounters + 1) ;the aggressor counts the encounter
-
-
-          ]
+        ]
         if learningCredencesType = "Update on the actual testimony"[;update with victim testimony
           updateKnowledgeOfCredences aggressor victim
         ]
-
       ]
-  ]
+    ]
 
 
 
@@ -454,6 +461,24 @@ to-report quieten [aggressor victim input ]
 
   ]
   report input
+end
+
+to updateNonQuietingDelta [aggressor victim]
+  ask victim [
+  let difference 0
+      if learningTendenciesType = "Difference to credence"[
+        set difference abs (testimony - [credence] of aggressor)
+      ]
+      if learningTendenciesType = "Difference to testimony"[
+        set difference abs (testimony - [testimony] of aggressor)
+      ]
+
+    let nonViolentEncounterCount (item ([groupType] of aggressor) encounters + 1 - item ([groupType] of aggressor) quietingCount)
+    if nonViolentEncounterCount > 0 [
+
+      set averageNonQuietingDelta replace-item ([groupType] of aggressor) averageNonQuietingDelta (((item ([groupType] of aggressor) averageNonQuietingDelta) * (nonViolentEncountercount - 1) + difference) / nonViolentEncounterCount)
+    ]
+  ]
 end
 
 to updateKnowledgeOfCredences [aggressor victim]
