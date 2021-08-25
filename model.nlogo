@@ -67,8 +67,8 @@ to go ;called once per tick
   ifelse allowInjustice = true [playGame][skipGame]
   if experiment? = true [doExperiments]
   prepareGame
-  printUpdate
-  if ticks >= 300 [stop] ;usually little of interest happens after 30 ticks
+  if printUpdates? = TRUE [printUpdate]
+  if ticks >= 1000 [stop] ;usually little of interest happens after 30 ticks
 end
 
 to playGame ;determines the agent-sets for the game and lets them play three rounds
@@ -204,9 +204,11 @@ to prepareGame ;agents move, group credences, testimony and distance from the tr
   set smotheringCounterTotals replace-item 3 smotheringCounterTotals (item 0 smotheringCounterTotals + item 1 smotheringCounterTotals + item 2 smotheringCounterTotals)
 
   ask people[
-    set averageQuietingTendencies replace-item 0 averageQuietingTendencies abs (item 0 averageQuietingDelta - item 0 averageNonQuietingDelta)
-    set averageQuietingTendencies replace-item 1 averageQuietingTendencies abs (item 1 averageQuietingDelta - item 1 averageNonQuietingDelta)
-    set averageQuietingTendencies replace-item 2 averageQuietingTendencies abs (item 2 averageQuietingDelta - item 2 averageNonQuietingDelta)
+    set averageQuietingTendencies replace-item 0 averageQuietingTendencies ((item 0 averageQuietingDelta + item 0 averageNonQuietingDelta) / 2)
+    set averageQuietingTendencies replace-item 1 averageQuietingTendencies ((item 1 averageQuietingDelta + item 1 averageNonQuietingDelta) / 2)
+    set averageQuietingTendencies replace-item 2 averageQuietingTendencies ((item 2 averageQuietingDelta + item 2 averageNonQuietingDelta) / 2)
+
+
     if credence > 1 [set credence 1] ;just in case
     if credence < 0 [set credence 0]
     forward random 10
@@ -414,7 +416,8 @@ to-report quieten [aggressor victim input ]
       if learningTendenciesType = "Difference to testimony"[
         set difference abs (testimony - [testimony] of aggressor)
       ]
-      set averageQuietingDelta replace-item ([groupType] of aggressor) averageQuietingDelta (((item ([groupType] of aggressor) averageQuietingDelta) * item ([groupType] of aggressor) quietingCount + difference) / (item ([groupType] of aggressor) quietingCount + 1))
+      let violentEncounterCount (item ([groupType] of aggressor) quietingCount + 1)
+      set averageQuietingDelta replace-item ([groupType] of aggressor) averageQuietingDelta (((item ([groupType] of aggressor) averageQuietingDelta) * (violentEncounterCount - 1) + difference) / violentEncounterCount)
 
       ;updates the average severity of being quietened
       set averageQuietingUtility (averageQuietingUtility * item 3 quietingCount + [utilityQuieting] of aggressor) / (item 3 quietingCount + 1)
@@ -465,13 +468,13 @@ end
 
 to updateNonQuietingDelta [aggressor victim]
   ask victim [
-  let difference 0
-      if learningTendenciesType = "Difference to credence"[
-        set difference abs (testimony - [credence] of aggressor)
-      ]
-      if learningTendenciesType = "Difference to testimony"[
-        set difference abs (testimony - [testimony] of aggressor)
-      ]
+    let difference 0
+    if learningTendenciesType = "Difference to credence"[
+      set difference abs (testimony - [credence] of aggressor)
+    ]
+    if learningTendenciesType = "Difference to testimony"[
+      set difference abs (testimony - [testimony] of aggressor)
+    ]
 
     let nonViolentEncounterCount (item ([groupType] of aggressor) encounters + 1 - item ([groupType] of aggressor) quietingCount)
     if nonViolentEncounterCount > 0 [
@@ -617,6 +620,39 @@ to-report calculateExpectedUtility [agent countParticipants] ;calculated in roun
   ]
   report expectedUtility
 end
+
+
+
+
+
+;put in a proper way for agents to learn
+to updateAverageThresholds [quieten? delta victim aggressor]
+
+  ask victim [
+  let expectedQuieting? false
+  if item [groupType] of aggressor averageThresholds > delta [
+      set expectedQuieting? true
+    ]
+
+    if quieten? != expectedQuieting? [
+      ifelse quieten? = true [
+        set averageThresholds replace-item [groupType] of aggressor averageThresholds (item [groupType] of aggressor averageThresholds - 0.1)
+      ][
+      set averageThresholds replace-item [groupType] of aggressor averageThresholds (item [groupType] of aggressor averageThresholds - 0.1)]
+
+    ]
+  ]
+
+
+
+end
+
+
+
+
+
+
+
 @#$#@#$#@
 GRAPHICS-WINDOW
 5
@@ -716,7 +752,7 @@ biasTypeB
 biasTypeB
 -1
 1
-0.2
+0.0
 0.1
 1
 NIL
@@ -798,7 +834,7 @@ penaltyPerPerson
 penaltyPerPerson
 0
 10
-2.0
+0.0
 1
 1
 NIL
@@ -845,14 +881,14 @@ NIL
 HORIZONTAL
 
 SLIDER
-1
-813
+0
+816
 195
-846
+849
 quietenThresholdA
 quietenThresholdA
 0.1
-0.9
+0.3
 0.1
 0.1
 1
@@ -861,13 +897,13 @@ HORIZONTAL
 
 SLIDER
 197
-813
-393
-846
+816
+390
+849
 quietenThresholdB
 quietenThresholdB
 0.1
-0.9
+0.3
 0.1
 0.1
 1
@@ -946,15 +982,15 @@ A
 1
 
 SLIDER
-395
-813
+393
+816
 593
-846
+849
 quietenThresholdC
 quietenThresholdC
 0
-0.9
 0.3
+0.2
 0.1
 1
 NIL
@@ -1009,10 +1045,10 @@ NIL
 1
 
 TEXTBOX
-601
-782
-751
-842
+599
+711
+749
+771
 |\n| Average\n| Values\n|
 12
 0.0
@@ -1140,7 +1176,7 @@ CHOOSER
 learningCredencesType
 learningCredencesType
 "Update only on what one wants to hear" "Update on the actual testimony"
-1
+0
 
 CHOOSER
 1123
@@ -1150,7 +1186,7 @@ CHOOSER
 learningTendenciesType
 learningTendenciesType
 "Difference to credence" "Difference to testimony"
-0
+1
 
 TEXTBOX
 1142
@@ -1350,6 +1386,17 @@ PENS
 "Actual Value" 1.0 0 -16777216 true "" "plot item 2 averageThresholds"
 "Group A" 1.0 0 -955883 true "" "plot item 0 credencesAboutC"
 "Group B" 1.0 0 -13345367 true "" "plot item 1 credencesAboutC"
+
+SWITCH
+562
+477
+705
+510
+PrintUpdates?
+PrintUpdates?
+1
+1
+-1000
 
 @#$#@#$#@
 ## WHAT IS IT?
