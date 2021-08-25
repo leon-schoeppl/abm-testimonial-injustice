@@ -204,6 +204,7 @@ to prepareGame ;agents move, group credences, testimony and distance from the tr
   set smotheringCounterTotals replace-item 3 smotheringCounterTotals (item 0 smotheringCounterTotals + item 1 smotheringCounterTotals + item 2 smotheringCounterTotals)
 
   ask people[
+    ;these three lines need to be replaced by somethng more accurate
     set averageQuietingTendencies replace-item 0 averageQuietingTendencies ((item 0 averageQuietingDelta + item 0 averageNonQuietingDelta) / 2)
     set averageQuietingTendencies replace-item 1 averageQuietingTendencies ((item 1 averageQuietingDelta + item 1 averageNonQuietingDelta) / 2)
     set averageQuietingTendencies replace-item 2 averageQuietingTendencies ((item 2 averageQuietingDelta + item 2 averageNonQuietingDelta) / 2)
@@ -235,49 +236,21 @@ to prepareGame ;agents move, group credences, testimony and distance from the tr
 
   ]
 
-  ;----------------------------------------------------------------------------------------------------------------------------------------------------------------------
-  ;refactor here!!!
-
-
-
-
-  set credencesAboutA replace-item 0 credencesAboutA ((item 0 credencesAboutA) / item 0 groupCounts)
-  set credencesAboutB replace-item 0 credencesAboutB ((item 0 credencesAboutB) / item 0 groupCounts)
-  set credencesAboutC replace-item 0 credencesAboutC ((item 0 credencesAboutC) / item 0 groupCounts)
-  set credencesAboutThresholdsA replace-item 0 credencesAboutThresholdsA ((item 0 credencesAboutThresholdsA) / item 0 groupCounts)
-  set credencesAboutThresholdsB replace-item 0 credencesAboutThresholdsB ((item 0 credencesAboutThresholdsB) / item 0 groupCounts)
-  set credencesAboutThresholdsC replace-item 0 credencesAboutThresholdsC ((item 0 credencesAboutThresholdsC) / item 0 groupCounts)
-  set credencesAboutPenalty replace-item 0 credencesAboutPenalty ((item 0 credencesAboutPenalty) / item 0 groupCounts)
-  set averageThresholds replace-item 0 averageThresholds (item 0 averageThresholds / item 0 groupCounts)
-  set groupCredences replace-item 0 groupCredences (item 0 groupCredences / item 0 groupCounts)
-  set groupTestimonies replace-item 0 groupTestimonies (item 0 groupTestimonies / item 0 groupCounts)
-
-  set credencesAboutA replace-item 1 credencesAboutA ((item 1 credencesAboutA) / item 1 groupCounts)
-  set credencesAboutB replace-item 1 credencesAboutB ((item 1 credencesAboutB) / item 1 groupCounts)
-  set credencesAboutC replace-item 1 credencesAboutC ((item 1 credencesAboutC) / item 1 groupCounts)
-  set credencesAboutThresholdsA replace-item 1 credencesAboutThresholdsA ((item 1 credencesAboutThresholdsA) / item 1 groupCounts)
-  set credencesAboutThresholdsB replace-item 1 credencesAboutThresholdsB ((item 1 credencesAboutThresholdsB) / item 1 groupCounts)
-  set credencesAboutThresholdsC replace-item 1 credencesAboutThresholdsC ((item 1 credencesAboutThresholdsC) / item 1 groupCounts)
-  set credencesAboutPenalty replace-item 1 credencesAboutPenalty ((item 1 credencesAboutPenalty) / item 1 groupCounts)
-  set averageThresholds replace-item 1 averageThresholds (item 1 averageThresholds / item 1 groupCounts)
-  set groupCredences replace-item 1 groupCredences (item 1 groupCredences / item 1 groupCounts)
-  set groupTestimonies replace-item 1 groupTestimonies (item 1 groupTestimonies / item 1 groupCounts)
-
-
-  if item 2 groupCounts > 0 [
-    set groupCredences replace-item 2 groupCredences (item 2 groupCredences / item 2 groupCounts)
-    set groupTestimonies replace-item 2 groupTestimonies (item 2 groupTestimonies / item 2 groupCounts)
-    set credencesAboutA replace-item 2 credencesAboutA ((item 2 credencesAboutA) / item 2 groupCounts)
-    set credencesAboutB replace-item 2 credencesAboutB ((item 2 credencesAboutB) / item 2 groupCounts)
-    set credencesAboutC replace-item 2 credencesAboutC ((item 2 credencesAboutC) / item 2 groupCounts)
-    set credencesAboutThresholdsA replace-item 2 credencesAboutThresholdsA ((item 2 credencesAboutThresholdsA) / item 2 groupCounts)
-    set credencesAboutThresholdsB replace-item 2 credencesAboutThresholdsB ((item 2 credencesAboutThresholdsB) / item 2 groupCounts)
-    set credencesAboutThresholdsC replace-item 2 credencesAboutThresholdsC ((item 2 credencesAboutThresholdsC) / item 2 groupCounts)
-    set credencesAboutPenalty replace-item 2 credencesAboutPenalty ((item 2 credencesAboutPenalty) / item 2 groupCounts)
-    set averageThresholds replace-item 2 averageThresholds (item 2 averageThresholds / item 2 groupCounts)
-
+  foreach [0 1 2] [
+    x ->
+    if item x groupCounts > 0 [
+      set groupCredences replace-item x groupCredences (item x groupCredences / item x groupCounts)
+      set groupTestimonies replace-item x groupTestimonies (item x groupTestimonies / item x groupCounts)
+      set credencesAboutA replace-item x credencesAboutA ((item x credencesAboutA) / item x groupCounts)
+      set credencesAboutB replace-item x credencesAboutB ((item x credencesAboutB) / item x groupCounts)
+      set credencesAboutC replace-item x credencesAboutC ((item x credencesAboutC) / item x groupCounts)
+      set credencesAboutThresholdsA replace-item x credencesAboutThresholdsA ((item x credencesAboutThresholdsA) / item x groupCounts)
+      set credencesAboutThresholdsB replace-item x credencesAboutThresholdsB ((item x credencesAboutThresholdsB) / item x groupCounts)
+      set credencesAboutThresholdsC replace-item x credencesAboutThresholdsC ((item x credencesAboutThresholdsC) / item x groupCounts)
+      set credencesAboutPenalty replace-item x credencesAboutPenalty ((item x credencesAboutPenalty) / item x groupCounts)
+      set averageThresholds replace-item x averageThresholds (item x averageThresholds / item x groupCounts)
+    ]
   ]
-
   set averagePenalty averagePenalty / countPeople
   set meanDistance meanDistance / countPeople
 
@@ -834,7 +807,7 @@ penaltyPerPerson
 penaltyPerPerson
 0
 10
-0.0
+2.0
 1
 1
 NIL
