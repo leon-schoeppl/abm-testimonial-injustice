@@ -68,7 +68,7 @@ to go ;called once per tick
   if experiment? = true [doExperiments]
   prepareGame
   if printUpdates? = TRUE [printUpdate]
-  if ticks >= 1000 [stop] ;usually little of interest happens after 30 ticks
+  if ticks >= 1000 [stop] ;usually little of interest happens after that many ticks
 end
 
 to playGame ;determines the agent-sets for the game and lets them play three rounds
@@ -104,12 +104,14 @@ to playGame ;determines the agent-sets for the game and lets them play three rou
 
         ask other participants[
           ifelse (shouldQuieten? myself self patchConsensus) = TRUE [
+            updateAverageThresholds TRUE myself self
             set inputFromThisGame quieten myself self inputFromThisGame
             if quietingType = "Ignore fully" AND relevantParticipantCount > 1 [
               set relevantParticipantCount relevantParticipantCount - 1
             ]
           ][
-            updateNonQuietingDelta myself self
+            updateAverageThresholds FALSE myself self
+
             ifelse [testimony] of myself = "NA" [
               set relevantParticipantCount relevantParticipantCount - 1
             ][
@@ -129,7 +131,6 @@ to playGame ;determines the agent-sets for the game and lets them play three rou
     ]
   ]
 end
-
 
 to doExperiments ;agents slowly get closer to the truth on their own
   ask people[
@@ -204,10 +205,12 @@ to prepareGame ;agents move, group credences, testimony and distance from the tr
   set smotheringCounterTotals replace-item 3 smotheringCounterTotals (item 0 smotheringCounterTotals + item 1 smotheringCounterTotals + item 2 smotheringCounterTotals)
 
   ask people[
-    ;these three lines need to be replaced by somethng more accurate
-    set averageQuietingTendencies replace-item 0 averageQuietingTendencies ((item 0 averageQuietingDelta + item 0 averageNonQuietingDelta) / 2)
-    set averageQuietingTendencies replace-item 1 averageQuietingTendencies ((item 1 averageQuietingDelta + item 1 averageNonQuietingDelta) / 2)
-    set averageQuietingTendencies replace-item 2 averageQuietingTendencies ((item 2 averageQuietingDelta + item 2 averageNonQuietingDelta) / 2)
+    if calculateTendenciesType = "Split the means"[
+      foreach [0 1 2][
+        x ->
+        set averageQuietingTendencies replace-item x averageQuietingTendencies ((item x averageQuietingDelta + item x averageNonQuietingDelta) / 2)
+    ]
+    ]
 
 
     if credence > 1 [set credence 1] ;just in case
@@ -231,9 +234,6 @@ to prepareGame ;agents move, group credences, testimony and distance from the tr
     set credencesAboutThresholdsC replace-item groupType credencesAboutThresholdsC ((item groupType credencesAboutThresholdsC) + item 2 averageQuietingTendencies)
     set credencesAboutPenalty replace-item groupType credencesAboutPenalty ((item groupType credencesAboutPenalty) + averageQuietingUtility)
     set averageThresholds replace-item groupType averageThresholds ((item groupType averageThresholds) + quietenTendency)
-
-
-
   ]
 
   foreach [0 1 2] [
@@ -381,17 +381,6 @@ to-report quieten [aggressor victim input ]
 
 
     if employLearningFunction = TRUE [
-      ;update the agents experience about quieting tendencies of other agents
-      let difference 0
-      if learningTendenciesType = "Difference to credence"[
-        set difference abs (testimony - [credence] of aggressor)
-      ]
-      if learningTendenciesType = "Difference to testimony"[
-        set difference abs (testimony - [testimony] of aggressor)
-      ]
-      let violentEncounterCount (item ([groupType] of aggressor) quietingCount + 1)
-      set averageQuietingDelta replace-item ([groupType] of aggressor) averageQuietingDelta (((item ([groupType] of aggressor) averageQuietingDelta) * (violentEncounterCount - 1) + difference) / violentEncounterCount)
-
       ;updates the average severity of being quietened
       set averageQuietingUtility (averageQuietingUtility * item 3 quietingCount + [utilityQuieting] of aggressor) / (item 3 quietingCount + 1)
 
@@ -426,7 +415,7 @@ to-report quieten [aggressor victim input ]
 
     if quietingType = "Ignore fully"[
       ask aggressor [
-        ;count down
+        ;if this option is chosen, the count of relevant participants is reduced by one in round 3
       ]
     ]
 
@@ -439,49 +428,23 @@ to-report quieten [aggressor victim input ]
   report input
 end
 
-to updateNonQuietingDelta [aggressor victim]
-  ask victim [
-    let difference 0
-    if learningTendenciesType = "Difference to credence"[
-      set difference abs (testimony - [credence] of aggressor)
-    ]
-    if learningTendenciesType = "Difference to testimony"[
-      set difference abs (testimony - [testimony] of aggressor)
-    ]
-
-    let nonViolentEncounterCount (item ([groupType] of aggressor) encounters + 1 - item ([groupType] of aggressor) quietingCount)
-    if nonViolentEncounterCount > 0 [
-
-      set averageNonQuietingDelta replace-item ([groupType] of aggressor) averageNonQuietingDelta (((item ([groupType] of aggressor) averageNonQuietingDelta) * (nonViolentEncountercount - 1) + difference) / nonViolentEncounterCount)
-    ]
-  ]
-end
-
 to updateKnowledgeOfCredences [aggressor victim]
   set averageTestimonies replace-item ([groupType] of victim) averageTestimonies ((item ([groupType] of victim) averageTestimonies * item ([groupType] of victim) encounters + [testimony] of victim) / (item ([groupType] of victim) encounters + 1))
   set encounters replace-item ([groupType] of victim) encounters (item ([groupType] of victim) encounters + 1) ;the aggressor counts the encounter
 end
 
-to smother [agent]
+to smother [agent] ;give tailored testimony/ withold testimony
   ask agent [
     if smotheringType = "Split the difference with expected Patch Consensus"[
-      set testimony (credence + expectedPatchConsensus) / 2
+      set testimony ((credence + expectedPatchConsensus) / 2)
     ]
-
     if smotheringType = "Utter expected Patch Consensus" [
       set testimony expectedPatchConsensus
     ]
     if smotheringType = "Withold testimony" [
       set testimony "NA"
-      ;do nothing
-      ;set testimony = "NA"
-      ;then I would have to discount NAs from the patch consensus
-      ;NAs don't get quietened
     ]
-
-
     set smotheringCounter smotheringCounter + 1
-
     set smotheringCounterTotals replace-item groupType smotheringCounterTotals (item groupType smotheringCounterTotals + 1)
   ]
 end
@@ -500,30 +463,30 @@ to-report calculateExpectedPatchConsensus [agent countParticipants]
 
 
       if patchConsensusType = "Add own credence" [
-        ifelse groupType = 0 [
-          set expectedPatchConsensus (credence + ((item 0 countParticipants) - 1) * (item 0 data) + (item 1 countParticipants) * (item 1 data) + (item 2 countParticipants) * (item 2 data))
-        ][
-          ifelse groupType = 1[
-            set result (credence + (item 0 countParticipants) * (item 0 data) + ((item 1 countParticipants) - 1) * (item 1 data) + (item 2 countParticipants) * (item 2 data))
+      ifelse groupType = 0 [
+        set expectedPatchConsensus (credence + ((item 0 countParticipants) - 1) * (item 0 data) + (item 1 countParticipants) * (item 1 data) + (item 2 countParticipants) * (item 2 data))
+      ][
+        ifelse groupType = 1[
+          set result (credence + (item 0 countParticipants) * (item 0 data) + ((item 1 countParticipants) - 1) * (item 1 data) + (item 2 countParticipants) * (item 2 data))
           ][
-            set result (credence + (item 0 countParticipants) * (item 0 data) + (item 1 countParticipants) * (item 1 data) + ((item 2 countParticipants) - 1) * (item 2 data))
+          set result (credence + (item 0 countParticipants) * (item 0 data) + (item 1 countParticipants) * (item 1 data) + ((item 2 countParticipants) - 1) * (item 2 data))
           ]
-        ]
-        set result result / (item 3 countParticipants)
       ]
+      set result result / (item 3 countParticipants)
+    ]
 
-      if patchConsensusType = "Ommit own credence" [
-        ifelse groupType = 0 [
-          set result (((item 0 countParticipants) - 1) * (item 0 data) + (item 1 countParticipants) * (item 1 data) + (item 2 countParticipants) * (item 2 data)) / ((item 3 countParticipants) - 1)
-        ][
+    if patchConsensusType = "Ommit own credence" [
+      ifelse groupType = 0 [
+        set result (((item 0 countParticipants) - 1) * (item 0 data) + (item 1 countParticipants) * (item 1 data) + (item 2 countParticipants) * (item 2 data)) / ((item 3 countParticipants) - 1)
+      ][
           ifelse groupType = 1[
-            set result ((item 0 countParticipants) * (item 0 data) + ((item 1 countParticipants) - 1) * (item 1 data) + (item 2 countParticipants) * (item 2 data)) / ((item 3 countParticipants) - 1)
-          ][
-            set result ((item 0 countParticipants) * (item 0 data) + (item 1 countParticipants) * (item 1 data) + ((item 2 countParticipants) - 1) * (item 2 data)) / ((item 3 countParticipants) - 1)
-          ]
+          set result ((item 0 countParticipants) * (item 0 data) + ((item 1 countParticipants) - 1) * (item 1 data) + (item 2 countParticipants) * (item 2 data)) / ((item 3 countParticipants) - 1)
+        ][
+          set result ((item 0 countParticipants) * (item 0 data) + (item 1 countParticipants) * (item 1 data) + ((item 2 countParticipants) - 1) * (item 2 data)) / ((item 3 countParticipants) - 1)
         ]
-        set result result / ((item 3 countParticipants) - 1)
       ]
+      set result result / ((item 3 countParticipants) - 1)
+    ]
 
     ; possibly add additional versions of calculating the Patch consensus here
 
@@ -594,26 +557,50 @@ to-report calculateExpectedUtility [agent countParticipants] ;calculated in roun
   report expectedUtility
 end
 
-
-
-
-
-;put in a proper way for agents to learn
-to updateAverageThresholds [quieten? delta victim aggressor]
-
+to updateAverageThresholds [quieten? aggressor victim]
   ask victim [
-  let expectedQuieting? false
-  if item [groupType] of aggressor averageThresholds > delta [
-      set expectedQuieting? true
+    let delta 0
+    if learningTendenciesType = "Difference to credence"[
+      set delta abs (testimony - [credence] of aggressor)
+    ]
+    if learningTendenciesType = "Difference to testimony"[
+      set delta abs (testimony - [testimony] of aggressor)
     ]
 
-    if quieten? != expectedQuieting? [
-      ifelse quieten? = true [
-        set averageThresholds replace-item [groupType] of aggressor averageThresholds (item [groupType] of aggressor averageThresholds - 0.1)
+
+    if calculateTendenciesType = "Adjust expectations"[
+      let expectedQuieting? false
+
+      if (item [groupType] of aggressor averageQuietingTendencies < delta) [
+        set expectedQuieting? true
+      ]
+
+      if quieten? = TRUE and expectedQuieting? = FALSE [
+
+        set averageQuietingTendencies replace-item ([groupType] of aggressor) averageQuietingTendencies ((item [groupType] of aggressor averageQuietingTendencies) - 0.2)
+
+      ]
+
+      if quieten? = FALSE and expectedQuieting? = TRUE [
+        set averageQuietingTendencies replace-item [groupType] of aggressor averageQuietingTendencies ((item [groupType] of aggressor averageQuietingTendencies) + 0.1)
+      ]
+    ]
+
+    if calculateTendenciesType = "Split the means"[
+      ifelse quieten? = true[
+        let violentEncounterCount (item ([groupType] of aggressor) quietingCount + 1)
+        set averageQuietingDelta replace-item ([groupType] of aggressor) averageQuietingDelta (((item ([groupType] of aggressor) averageQuietingDelta) * (violentEncounterCount - 1) + delta) / violentEncounterCount)
       ][
-      set averageThresholds replace-item [groupType] of aggressor averageThresholds (item [groupType] of aggressor averageThresholds - 0.1)]
 
+        let nonViolentEncounterCount (item ([groupType] of aggressor) encounters + 1 - item ([groupType] of aggressor) quietingCount)
+        if nonViolentEncounterCount > 0 [
+
+          set averageNonQuietingDelta replace-item ([groupType] of aggressor) averageNonQuietingDelta (((item ([groupType] of aggressor) averageNonQuietingDelta) * (nonViolentEncountercount - 1) + delta) / nonViolentEncounterCount)
+        ]
+      ]
     ]
+    ;put in a proper way for agents to learn, possibly bayesian updating
+
   ]
 
 
@@ -630,8 +617,8 @@ end
 GRAPHICS-WINDOW
 5
 10
-462
-468
+460
+466
 -1
 -1
 64.28571428571429
@@ -695,7 +682,7 @@ countTypeB
 countTypeB
 10
 200
-50.0
+200.0
 10
 1
 NIL
@@ -710,7 +697,7 @@ biasTypeA
 biasTypeA
 -1
 1
--0.2
+-1.0
 0.1
 1
 NIL
@@ -794,7 +781,7 @@ SWITCH
 545
 employLearningFunction
 employLearningFunction
-0
+1
 1
 -1000
 
@@ -807,7 +794,7 @@ penaltyPerPerson
 penaltyPerPerson
 0
 10
-2.0
+1.0
 1
 1
 NIL
@@ -832,7 +819,7 @@ penaltySmothering
 penaltySmothering
 0
 10
-5.0
+10.0
 1
 1
 NIL
@@ -862,7 +849,7 @@ quietenThresholdA
 quietenThresholdA
 0.1
 0.3
-0.1
+0.3
 0.1
 1
 NIL
@@ -877,7 +864,7 @@ quietenThresholdB
 quietenThresholdB
 0.1
 0.3
-0.1
+0.3
 0.1
 1
 NIL
@@ -923,7 +910,7 @@ countTypeC
 countTypeC
 0
 200
-0.0
+200.0
 10
 1
 NIL
@@ -938,7 +925,7 @@ biasTypeC
 biasTypeC
 -1
 1
--0.1
+-1.0
 0.1
 1
 NIL
@@ -963,7 +950,7 @@ quietenThresholdC
 quietenThresholdC
 0
 0.3
-0.2
+0.3
 0.1
 1
 NIL
@@ -1018,10 +1005,10 @@ NIL
 1
 
 TEXTBOX
-599
-711
-749
-771
+605
+785
+755
+845
 |\n| Average\n| Values\n|
 12
 0.0
@@ -1035,7 +1022,7 @@ CHOOSER
 quietingType
 quietingType
 "Ignore fully" "Slot in own credence" "Split the difference"
-1
+0
 
 TEXTBOX
 934
@@ -1064,7 +1051,7 @@ SWITCH
 586
 experiment?
 experiment?
-0
+1
 1
 -1000
 
@@ -1149,7 +1136,7 @@ CHOOSER
 learningCredencesType
 learningCredencesType
 "Update only on what one wants to hear" "Update on the actual testimony"
-0
+1
 
 CHOOSER
 1123
@@ -1179,7 +1166,7 @@ CHOOSER
 initialValues
 initialValues
 "All 0" "All random" "Custom"
-0
+1
 
 CHOOSER
 1163
@@ -1200,7 +1187,7 @@ weightOfInput
 weightOfInput
 0.1
 0.9
-0.1
+0.5
 0.1
 1
 NIL
@@ -1370,6 +1357,16 @@ PrintUpdates?
 1
 1
 -1000
+
+CHOOSER
+1135
+843
+1341
+888
+calculateTendenciesType
+calculateTendenciesType
+"Split the means" "Adjust expectations"
+0
 
 @#$#@#$#@
 ## WHAT IS IT?
