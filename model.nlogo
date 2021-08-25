@@ -38,7 +38,18 @@ globals[
   quietingCounter ;how often did agents quieten others this round?
   smotheringCounterTotals ;how often did agents smother themselves in total so far? (list)
   quietingCounterTotals ;how often did agents quieten others in total so far? (list)
-  ]
+  ;------------------------------------------------------------------------------------------------------------------
+  ;Values for plotting the learning functions
+  credencesAboutA
+  credencesAboutThresholdsA
+  credencesAboutB
+  credencesAboutThresholdsB
+  credencesAboutC
+  credencesAboutThresholdsC
+  credencesAboutPenalty
+  averagePenalty
+  averageThresholds
+]
 
 to setup ;called at the start of each simulation
   clear-all
@@ -55,7 +66,7 @@ to go ;called once per tick
   if experiment? = true [doExperiments]
   prepareGame
   printUpdate
-  if ticks >= 30 [stop] ;usually little of interest happens after 30 ticks
+  if ticks >= 300 [stop] ;usually little of interest happens after 30 ticks
 end
 
 to playGame ;determines the agent-sets for the game and lets them play three rounds
@@ -181,6 +192,7 @@ to setupWorld
 
   set quietingCounterTotals (list 0 0 0 0)
   set smotheringCounterTotals (list 0 0 0 0)
+
 end
 
 to prepareGame ;agents move, group credences, testimony and distance from the truth are updated
@@ -199,17 +211,54 @@ to prepareGame ;agents move, group credences, testimony and distance from the tr
     set groupCredences replace-item groupType groupCredences ((item groupType groupCredences) + credence)
     set groupTestimonies replace-item groupType groupTestimonies ((item groupType groupTestimonies) + testimony)
 
+
+    ;update what agents believe about others
+    set credencesAboutA replace-item groupType credencesAboutA ((item groupType credencesAboutA) + item 0 averageTestimonies)
+    set credencesAboutB replace-item groupType credencesAboutB ((item groupType credencesAboutB) + item 1 averageTestimonies)
+    set credencesAboutC replace-item groupType credencesAboutC ((item groupType credencesAboutC) + item 2 averageTestimonies)
+    set credencesAboutThresholdsA replace-item groupType credencesAboutThresholdsA ((item groupType credencesAboutThresholdsA) + item 0 averageQuietingTendencies)
+    set credencesAboutThresholdsB replace-item groupType credencesAboutThresholdsB ((item groupType credencesAboutThresholdsB) + item 1 averageQuietingTendencies)
+    set credencesAboutThresholdsC replace-item groupType credencesAboutThresholdsC ((item groupType credencesAboutThresholdsC) + item 2 averageQuietingTendencies)
+    set credencesAboutPenalty replace-item groupType credencesAboutPenalty ((item groupType credencesAboutPenalty) + averageQuietingUtility)
+
+
+
   ]
 
-  ;refactor here?
+  ;----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  ;refactor here!!!
   set groupCredences replace-item 0 groupCredences (item 0 groupCredences / item 0 groupCounts)
   set groupTestimonies replace-item 0 groupTestimonies (item 0 groupTestimonies / item 0 groupCounts)
   set groupCredences replace-item 1 groupCredences (item 1 groupCredences / item 1 groupCounts)
   set groupTestimonies replace-item 1 groupTestimonies (item 1 groupTestimonies / item 1 groupCounts)
 
+  set credencesAboutA replace-item 0 credencesAboutA ((item 0 credencesAboutA) / item 0 groupCounts)
+  set credencesAboutB replace-item 0 credencesAboutB ((item 0 credencesAboutB) / item 0 groupCounts)
+  set credencesAboutC replace-item 0 credencesAboutC ((item 0 credencesAboutC) / item 0 groupCounts)
+  set credencesAboutThresholdsA replace-item 0 credencesAboutThresholdsA ((item 0 credencesAboutThresholdsA) / item 0 groupCounts)
+  set credencesAboutThresholdsB replace-item 0 credencesAboutThresholdsB ((item 0 credencesAboutThresholdsB) / item 0 groupCounts)
+  set credencesAboutThresholdsC replace-item 0 credencesAboutThresholdsC ((item 0 credencesAboutThresholdsC) / item 0 groupCounts)
+  set credencesAboutPenalty replace-item 0 credencesAboutPenalty ((item 0 credencesAboutPenalty) / item 0 groupCounts)
+
+  set credencesAboutA replace-item 1 credencesAboutA ((item 1 credencesAboutA) / item 1 groupCounts)
+  set credencesAboutB replace-item 1 credencesAboutB ((item 1 credencesAboutB) / item 1 groupCounts)
+  set credencesAboutC replace-item 1 credencesAboutC ((item 1 credencesAboutC) / item 1 groupCounts)
+  set credencesAboutThresholdsA replace-item 1 credencesAboutThresholdsA ((item 1 credencesAboutThresholdsA) / item 1 groupCounts)
+  set credencesAboutThresholdsB replace-item 1 credencesAboutThresholdsB ((item 1 credencesAboutThresholdsB) / item 1 groupCounts)
+  set credencesAboutThresholdsC replace-item 1 credencesAboutThresholdsC ((item 1 credencesAboutThresholdsC) / item 1 groupCounts)
+  set credencesAboutPenalty replace-item 1 credencesAboutPenalty ((item 1 credencesAboutPenalty) / item 1 groupCounts)
+
+
   if item 2 groupCounts > 0 [
     set groupCredences replace-item 2 groupCredences (item 2 groupCredences / item 2 groupCounts)
     set groupTestimonies replace-item 2 groupTestimonies (item 2 groupTestimonies / item 2 groupCounts)
+    set credencesAboutA replace-item 2 credencesAboutA ((item 2 credencesAboutA) / item 2 groupCounts)
+    set credencesAboutB replace-item 2 credencesAboutB ((item 2 credencesAboutB) / item 2 groupCounts)
+    set credencesAboutC replace-item 2 credencesAboutC ((item 2 credencesAboutC) / item 2 groupCounts)
+    set credencesAboutThresholdsA replace-item 2 credencesAboutThresholdsA ((item 2 credencesAboutThresholdsA) / item 2 groupCounts)
+    set credencesAboutThresholdsB replace-item 2 credencesAboutThresholdsB ((item 2 credencesAboutThresholdsB) / item 2 groupCounts)
+    set credencesAboutThresholdsC replace-item 2 credencesAboutThresholdsC ((item 2 credencesAboutThresholdsC) / item 2 groupCounts)
+    set credencesAboutPenalty replace-item 2 credencesAboutPenalty ((item 2 credencesAboutPenalty) / item 2 groupCounts)
   ]
 
   set meanDistance meanDistance / countPeople
@@ -218,6 +267,13 @@ end
 to resetValues
   set groupCredences (list 0 0 0)
   set groupTestimonies (list 0 0 0)
+  set credencesAboutA (list 0 0 0)
+  set credencesAboutB (list 0 0 0)
+  set credencesAboutC (list 0 0 0)
+  set credencesAboutThresholdsA (list 0 0 0)
+  set credencesAboutThresholdsB (list 0 0 0)
+  set credencesAboutThresholdsC (list 0 0 0)
+  set credencesAboutPenalty (list 0 0 0)
   set meanDistance 0
   set quietingCounter 0
   set smotheringCounter 0
@@ -526,8 +582,8 @@ end
 GRAPHICS-WINDOW
 5
 10
-463
-469
+462
+468
 -1
 -1
 64.28571428571429
@@ -591,7 +647,7 @@ countTypeB
 countTypeB
 10
 200
-50.0
+100.0
 10
 1
 NIL
@@ -951,7 +1007,7 @@ CHOOSER
 smotheringType
 smotheringType
 "Utter expected Patch Consensus" "Withhold testimony" "Split the difference with expected Patch Consensus"
-1
+0
 
 SWITCH
 1139
@@ -960,7 +1016,7 @@ SWITCH
 586
 experiment?
 experiment?
-1
+0
 1
 -1000
 
@@ -972,7 +1028,7 @@ CHOOSER
 patchConsensusType
 patchConsensusType
 "Ommit own credence" "Add own credence"
-1
+0
 
 TEXTBOX
 91
@@ -1075,7 +1131,7 @@ CHOOSER
 initialValues
 initialValues
 "All 0" "All random" "Custom"
-2
+0
 
 CHOOSER
 1163
@@ -1101,6 +1157,160 @@ weightOfInput
 1
 NIL
 HORIZONTAL
+
+PLOT
+1526
+41
+1816
+191
+Credences About the Penalty
+NIL
+NIL
+0.0
+1.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -16777216 true "" "plot penaltyPerPerson "
+"group A" 1.0 0 -955883 true "" "plot item 0 credencesAboutPenalty"
+"group B" 1.0 0 -13345367 true "" "plot item 1 credencesAboutPenalty"
+"group C" 1.0 0 -6459832 true "" "plot item 2 credencesAboutPenalty"
+
+TEXTBOX
+1668
+10
+1929
+58
+Learning Function Plots
+20
+0.0
+1
+
+PLOT
+1528
+198
+1817
+348
+Credences about Credences of A
+NIL
+NIL
+0.0
+10.0
+0.0
+1.0
+true
+false
+"" ""
+PENS
+"Actual Value" 1.0 0 -16777216 true "" "plot item 0 groupCredences"
+"group A" 1.0 0 -955883 true "" "plot item 0 credencesAboutA"
+"group B" 1.0 0 -13345367 true "" "plot item 1 credencesAboutA"
+"group C" 1.0 0 -6459832 true "" "plot item 2 credencesAboutA"
+
+PLOT
+1820
+197
+2105
+347
+Credences about Thresholds of A
+NIL
+NIL
+0.0
+10.0
+0.0
+1.0
+true
+false
+"" ""
+PENS
+"Actual Value" 1.0 0 -16777216 true "" "plot quietenThresholdA"
+"group B" 1.0 0 -13345367 true "" "plot item 1 credencesAboutThresholdsA"
+"group C" 1.0 0 -6459832 true "" "plot item 2 credencesAboutThresholdsA"
+
+PLOT
+1527
+354
+1818
+504
+Credences about Credences of B
+NIL
+NIL
+0.0
+10.0
+0.0
+1.0
+true
+false
+"" ""
+PENS
+"Actual Value" 1.0 0 -16777216 true "" "plot item 1 groupCredences"
+"group A" 1.0 0 -955883 true "" "plot item 0 credencesAboutB"
+"group B" 1.0 0 -13345367 true "" "plot item 1 credencesAboutB"
+"group C" 1.0 0 -6459832 true "" "plot item 2 credencesAboutB"
+
+PLOT
+1821
+354
+2106
+504
+Credences about Thresholds of B
+NIL
+NIL
+0.0
+10.0
+0.0
+1.0
+true
+false
+"" ""
+PENS
+"actual Value" 1.0 0 -16777216 true "" "plot quietenThresholdA"
+"group A" 1.0 0 -955883 true "" "plot item 0 credencesAboutThresholdsA"
+"group C" 1.0 0 -6459832 true "" "plot item 2 credencesAboutThresholdsA"
+
+PLOT
+1527
+508
+1819
+658
+Credences about Credences of C
+NIL
+NIL
+0.0
+10.0
+0.0
+1.0
+true
+false
+"" ""
+PENS
+"Actual Value" 1.0 0 -16777216 true "" "plot item 2 groupCredences"
+"Group A" 1.0 0 -955883 true "" "plot item 0 credencesAboutC"
+"Group B" 1.0 0 -13345367 true "" "plot item 1 credencesAboutC"
+"Group C" 1.0 0 -6459832 true "" "plot item 2 credencesAboutC"
+
+PLOT
+1822
+509
+2106
+659
+Credences about Thresholds of C
+NIL
+NIL
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"Actual Value" 1.0 0 -16777216 true "" "plot quietenThresholdC"
+"Group A" 1.0 0 -955883 true "" "plot item 0 credencesAboutC"
+"Group B" 1.0 0 -13345367 true "" "plot item 1 credencesAboutC"
 
 @#$#@#$#@
 ## WHAT IS IT?
