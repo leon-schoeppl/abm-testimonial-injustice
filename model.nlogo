@@ -451,9 +451,7 @@ end
 
 to-report calculateExpectedPatchConsensus [agent countParticipants]
   let result 0
-
-
-    ask agent [
+  ask agent [
     let data 0
     ifelse employLearningFunction = TRUE [ ;Do the agents have access to the objective averages, or do they have to rely on personal experience?
       set data averageTestimonies
@@ -462,27 +460,27 @@ to-report calculateExpectedPatchConsensus [agent countParticipants]
     ]
 
 
-      if patchConsensusType = "Add own credence" [
+    if patchConsensusType = "Add own credence" [
       ifelse groupType = 0 [
         set expectedPatchConsensus (credence + ((item 0 countParticipants) - 1) * (item 0 data) + (item 1 countParticipants) * (item 1 data) + (item 2 countParticipants) * (item 2 data))
       ][
         ifelse groupType = 1[
           set result (credence + (item 0 countParticipants) * (item 0 data) + ((item 1 countParticipants) - 1) * (item 1 data) + (item 2 countParticipants) * (item 2 data))
-          ][
+        ][
           set result (credence + (item 0 countParticipants) * (item 0 data) + (item 1 countParticipants) * (item 1 data) + ((item 2 countParticipants) - 1) * (item 2 data))
-          ]
+        ]
       ]
       set result result / (item 3 countParticipants)
     ]
 
     if patchConsensusType = "Ommit own credence" [
       ifelse groupType = 0 [
-        set result (((item 0 countParticipants) - 1) * (item 0 data) + (item 1 countParticipants) * (item 1 data) + (item 2 countParticipants) * (item 2 data)) / ((item 3 countParticipants) - 1)
+        set result (((item 0 countParticipants) - 1) * (item 0 data) + (item 1 countParticipants) * (item 1 data) + (item 2 countParticipants) * (item 2 data))
       ][
           ifelse groupType = 1[
-          set result ((item 0 countParticipants) * (item 0 data) + ((item 1 countParticipants) - 1) * (item 1 data) + (item 2 countParticipants) * (item 2 data)) / ((item 3 countParticipants) - 1)
+          set result ((item 0 countParticipants) * (item 0 data) + ((item 1 countParticipants) - 1) * (item 1 data) + (item 2 countParticipants) * (item 2 data))
         ][
-          set result ((item 0 countParticipants) * (item 0 data) + (item 1 countParticipants) * (item 1 data) + ((item 2 countParticipants) - 1) * (item 2 data)) / ((item 3 countParticipants) - 1)
+          set result ((item 0 countParticipants) * (item 0 data) + (item 1 countParticipants) * (item 1 data) + ((item 2 countParticipants) - 1) * (item 2 data))
         ]
       ]
       set result result / ((item 3 countParticipants) - 1)
@@ -490,9 +488,10 @@ to-report calculateExpectedPatchConsensus [agent countParticipants]
 
     ; possibly add additional versions of calculating the Patch consensus here
 
-    ]
 
+  ]
 
+  ;print result
   report result
 
 end
@@ -612,16 +611,15 @@ end
 
 
 
-
 @#$#@#$#@
 GRAPHICS-WINDOW
 5
 10
-460
-466
+462
+468
 -1
 -1
-64.28571428571429
+90.0
 1
 10
 1
@@ -631,10 +629,10 @@ GRAPHICS-WINDOW
 1
 1
 1
--3
-3
--3
-3
+-2
+2
+-2
+2
 0
 0
 1
@@ -650,7 +648,7 @@ countTypeA
 countTypeA
 10
 200
-200.0
+100.0
 10
 1
 NIL
@@ -682,7 +680,7 @@ countTypeB
 countTypeB
 10
 200
-200.0
+50.0
 10
 1
 NIL
@@ -697,7 +695,7 @@ biasTypeA
 biasTypeA
 -1
 1
--1.0
+-0.2
 0.1
 1
 NIL
@@ -781,7 +779,7 @@ SWITCH
 545
 employLearningFunction
 employLearningFunction
-1
+0
 1
 -1000
 
@@ -794,7 +792,7 @@ penaltyPerPerson
 penaltyPerPerson
 0
 10
-1.0
+2.0
 1
 1
 NIL
@@ -819,7 +817,7 @@ penaltySmothering
 penaltySmothering
 0
 10
-10.0
+5.0
 1
 1
 NIL
@@ -834,7 +832,7 @@ worldDimensions
 worldDimensions
 2
 10
-6.0
+4.0
 2
 1
 NIL
@@ -849,7 +847,7 @@ quietenThresholdA
 quietenThresholdA
 0.1
 0.3
-0.3
+0.1
 0.1
 1
 NIL
@@ -864,7 +862,7 @@ quietenThresholdB
 quietenThresholdB
 0.1
 0.3
-0.3
+0.1
 0.1
 1
 NIL
@@ -910,7 +908,7 @@ countTypeC
 countTypeC
 0
 200
-200.0
+0.0
 10
 1
 NIL
@@ -925,7 +923,7 @@ biasTypeC
 biasTypeC
 -1
 1
--1.0
+0.0
 0.1
 1
 NIL
@@ -1022,7 +1020,7 @@ CHOOSER
 quietingType
 quietingType
 "Ignore fully" "Slot in own credence" "Split the difference"
-0
+1
 
 TEXTBOX
 934
@@ -1187,7 +1185,7 @@ weightOfInput
 weightOfInput
 0.1
 0.9
-0.5
+0.1
 0.1
 1
 NIL
