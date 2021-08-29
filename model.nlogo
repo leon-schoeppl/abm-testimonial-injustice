@@ -137,21 +137,21 @@ to doExperiments ;agents slowly get closer to the truth on their own
   ask people[
 
 
-    ifelse biasedExperiments? = TRUE and random-float 1 < abs (bias) [
-      ;let delta abs (credence - objectiveChanceP)
-     ; set credence ( w * (objectiveChanceP + bias * delta) + (1 - w) * credence)
+    if biasType = "Perpetual" [
 
+          set credence (w * (objectiveChanceP + random-float 1 * Bias) + (1 - w) * credence)
 
+    ]
 
-      if bias > 0 [
+    if biasType = "Resolving"  [
+      let delta abs (credence - objectiveChanceP)
+      set credence ( w * (objectiveChanceP + bias * delta) + (1 - w) * credence)
 
+    ]
 
-        set credence (w * 1 + (1 - w) * credence)]
-      if bias < 0 [set credence (0 + (1 - w) * credence) ]
-
-
-    ][
-      set credence (w * objectiveChanceP + (1 - w) * credence)]
+    if biasType = "None" [
+      set credence (w * objectiveChanceP + (1 - w) * credence)
+    ]
   ]
 
 end
@@ -376,11 +376,17 @@ to-report shouldQuieten? [aggressor victim patchConsensus]
 
   ]
 
+  let condition true
+  if additionalQuietingCondition = TRUE [
+    set condition (divergenceVictimConsensus > relevantThreshold)
+
+  ]
+
   ;conditions for quieting:
   ifelse ([groupType] of aggressor != [groupType] of victim) ;different group identities
   AND divergenceAggressorConsensus < divergenceVictimConsensus ;credence of aggressor is closer to the group consensus than testimony of victim
   AND divergenceVictimAggressor > relevantThreshold ;testimony of victim is far enough from credence of aggressor
-  ;AND divergenseVictimConsensus > relevantThreshold ;testimony of victim is far enough from patch consensus
+  AND condition ;testimony of victim is far enough from patch consensus
   [report true][report false]
 
 
@@ -470,8 +476,6 @@ to-report calculateExpectedPatchConsensus [agent countParticipants]
     ][
       set data groupCredences
     ]
-
-
     if patchConsensusType = "Add own credence" [
       ifelse groupType = 0 [
         set expectedPatchConsensus (credence + ((item 0 countParticipants) - 1) * (item 0 data) + (item 1 countParticipants) * (item 1 data) + (item 2 countParticipants) * (item 2 data))
@@ -497,15 +501,8 @@ to-report calculateExpectedPatchConsensus [agent countParticipants]
       ]
       set result result / ((item 3 countParticipants) - 1)
     ]
-
-    ; possibly add additional versions of calculating the Patch consensus here
-
-
   ]
-
-  ;print result
   report result
-
 end
 
 to-report calculatePatchConsensus [participants countParticipants]
@@ -625,11 +622,11 @@ end
 GRAPHICS-WINDOW
 5
 10
-463
-469
+462
+468
 -1
 -1
-90.0
+64.28571428571429
 1
 10
 1
@@ -639,10 +636,10 @@ GRAPHICS-WINDOW
 1
 1
 1
--2
-2
--2
-2
+-3
+3
+-3
+3
 0
 0
 1
@@ -809,11 +806,11 @@ NIL
 HORIZONTAL
 
 TEXTBOX
-758
-475
-923
-501
-Utility Function
+742
+480
+941
+528
+Epistemic Violence
 20
 0.0
 1
@@ -842,7 +839,7 @@ worldDimensions
 worldDimensions
 2
 10
-4.0
+6.0
 2
 1
 NIL
@@ -1071,7 +1068,7 @@ CHOOSER
 patchConsensusType
 patchConsensusType
 "Ommit own credence" "Add own credence"
-0
+1
 
 TEXTBOX
 91
@@ -1177,10 +1174,10 @@ initialValues
 1
 
 SLIDER
-1141
-810
-1335
-843
+1239
+757
+1384
+790
 weightOfInput
 weightOfInput
 0.1
@@ -1357,30 +1354,19 @@ PrintUpdates?
 -1000
 
 CHOOSER
-1130
-852
-1336
-897
+1143
+796
+1349
+841
 calculateTendenciesType
 calculateTendenciesType
 "Split the means" "Adjust expectations"
 0
 
-SWITCH
-1289
-551
-1468
-584
-biasedExperiments?
-biasedExperiments?
-0
-1
--1000
-
 SLIDER
 1139
 754
-1311
+1236
 787
 w
 w
@@ -1391,6 +1377,27 @@ w
 1
 NIL
 HORIZONTAL
+
+CHOOSER
+1286
+546
+1424
+591
+biasType
+biasType
+"None" "Perpetual" "Resolving"
+1
+
+SWITCH
+709
+623
+965
+656
+additionalQuietingCondition
+additionalQuietingCondition
+1
+1
+-1000
 
 @#$#@#$#@
 ## WHAT IS IT?
