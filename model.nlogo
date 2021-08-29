@@ -3,6 +3,7 @@ breed[people person]
 people-own[
   groupType ;which group does the agent belong to
   credence ;what is the agents credence in the proposition?
+  bias
   quietenTendency ;how quick is the agent to quieten those of diverging identity?
   utilityQuieting ;how bad an instance of quieting committed by this agent is for the victim
   utilitySmothering ;how bad an instance of smothering is for this agent themself
@@ -134,15 +135,25 @@ end
 
 to doExperiments ;agents slowly get closer to the truth on their own
   ask people[
-    ;needs a more realistic way of updating
-    if experimentType = "Custom"[
-      set credence credence + (objectiveChanceP - credence) * 0.1
-      set credence (credence + item groupType groupBiases * 0.01 )
-    ]
-    if experimentType = "Douven"[
-      ;put in later
-    ]
+
+
+    ifelse biasedExperiments? = TRUE and random-float 1 < abs (bias) [
+      ;let delta abs (credence - objectiveChanceP)
+     ; set credence ( w * (objectiveChanceP + bias * delta) + (1 - w) * credence)
+
+
+
+      if bias > 0 [
+
+
+        set credence (w * 1 + (1 - w) * credence)]
+      if bias < 0 [set credence (0 + (1 - w) * credence) ]
+
+
+    ][
+      set credence (w * objectiveChanceP + (1 - w) * credence)]
   ]
+
 end
 
 to skipGame ;if the simulation disallows testimonial injustice, everyone just updates by splitting the difference with the mean of the other participants
@@ -303,8 +314,9 @@ to setupGroup [groupNumber]
     set size 0.3
     ;-----------------------------------------------------------------------------------------------------
     ;group specific features
-    set credence objectiveChanceP + random-float 2 * (item groupNumber groupBiases) ; group bias influences distance from the truth
-    set quietenTendency random-float 2 * (item groupNumber GroupThresholds) ; group tendency influences individual threshold
+    set bias random-float 4 * (item groupNumber groupBiases) - item groupNumber groupBiases ;some people are outliers in their group!
+    set credence objectiveChanceP + bias ; group bias influences distance from the truth
+    set quietenTendency random-float 2 * (item groupNumber GroupThresholds) ; group tendency influences individual threshold ;add overlap here
     set groupType groupNumber
     set color item groupNumber groupColors
     ;-----------------------------------------------------------------------------------------------------
@@ -609,14 +621,12 @@ end
 
 
 
-
-
 @#$#@#$#@
 GRAPHICS-WINDOW
 5
 10
-462
-468
+463
+469
 -1
 -1
 90.0
@@ -981,7 +991,7 @@ SWITCH
 617
 allowInjustice
 allowInjustice
-0
+1
 1
 -1000
 
@@ -1049,7 +1059,7 @@ SWITCH
 586
 experiment?
 experiment?
-1
+0
 1
 -1000
 
@@ -1165,16 +1175,6 @@ initialValues
 initialValues
 "All 0" "All random" "Custom"
 1
-
-CHOOSER
-1163
-758
-1302
-803
-experimentType
-experimentType
-"Custom" "Douven"
-0
 
 SLIDER
 1141
@@ -1357,14 +1357,40 @@ PrintUpdates?
 -1000
 
 CHOOSER
-1135
-843
-1341
-888
+1130
+852
+1336
+897
 calculateTendenciesType
 calculateTendenciesType
 "Split the means" "Adjust expectations"
 0
+
+SWITCH
+1289
+551
+1468
+584
+biasedExperiments?
+biasedExperiments?
+0
+1
+-1000
+
+SLIDER
+1139
+754
+1311
+787
+w
+w
+0.1
+0.5
+0.1
+0.1
+1
+NIL
+HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?
