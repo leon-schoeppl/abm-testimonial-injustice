@@ -1,4 +1,6 @@
+extensions [array]
 breed[people person]
+
 
 people-own[
   groupType ;which group does the agent belong to
@@ -19,6 +21,9 @@ people-own[
   averageQuietingTendencies ;how big - on average - was this agents divergence from that groups testimony when they were quietened
   quietingCount ;how often - per group - has this agent been quietened?
   averageQuietingUtility ;how bad - on average - were the quieting instances this agent experienced
+  quietingExperiences
+  unexpectedQuietings
+  unexpectedNonQuietings
 ]
 
 globals[
@@ -105,13 +110,13 @@ to playGame ;determines the agent-sets for the game and lets them play three rou
 
         ask other participants[
           ifelse (shouldQuieten? myself self patchConsensus) = TRUE [
-            updateAverageThresholds TRUE myself self
+            updateAverageThresholds TRUE myself self patchConsensus
             set inputFromThisGame quieten myself self inputFromThisGame
             if quietingType = "Ignore fully" AND relevantParticipantCount > 1 [
               set relevantParticipantCount relevantParticipantCount - 1
             ]
           ][
-            updateAverageThresholds FALSE myself self
+            updateAverageThresholds FALSE myself self patchConsensus
 
             ifelse [testimony] of myself = "NA" [
               set relevantParticipantCount relevantParticipantCount - 1
@@ -216,6 +221,24 @@ to prepareGame ;agents move, group credences, testimony and distance from the tr
   set smotheringCounterTotals replace-item 3 smotheringCounterTotals (item 0 smotheringCounterTotals + item 1 smotheringCounterTotals + item 2 smotheringCounterTotals)
 
   ask people[
+
+    if calculateTendenciesType = "Adjust expectations"[
+      foreach [0 1 2][
+        x ->
+        set averageQuietingTendencies replace-item x averageQuietingTendencies (item x averageQuietingTendencies + 0.1 * item x unexpectedNonQuietings - 0.1 * item x unexpectedQuietings)
+         if item x averageQuietingTendencies < 0 [
+         set averageQuietingTendencies replace-item x averageQuietingTendencies 0
+      ]
+       if item x averageQuietingTendencies > 1 [
+         set averageQuietingTendencies replace-item x averageQuietingTendencies 1
+      ]
+      ]
+
+      set unexpectedQuietings (list 0 0 0)
+      set unexpectedNonQuietings (list 0 0 0)
+    ]
+
+
     if calculateTendenciesType = "Split the means"[
       foreach [0 1 2][
         x ->
@@ -316,7 +339,7 @@ to setupGroup [groupNumber]
     ;group specific features
     set bias random-float 4 * (item groupNumber groupBiases) - item groupNumber groupBiases ;some people are outliers in their group!
     set credence objectiveChanceP + bias ; group bias influences distance from the truth
-    set quietenTendency random-float 2 * (item groupNumber GroupThresholds) ; group tendency influences individual threshold ;add overlap here
+    set quietenTendency random-float 2 * (item groupNumber GroupThresholds) ; group tendency influences individual threshold
     set groupType groupNumber
     set color item groupNumber groupColors
     ;-----------------------------------------------------------------------------------------------------
@@ -327,15 +350,18 @@ to setupGroup [groupNumber]
     ;learning function features
     set quietingCount (list 0 0 0 0)
     set encounters (list 0 0 0)
-    set averageQuietingTendencies (list 0 0 0)
+       set unexpectedQuietings (list 0 0 0)
+    set unexpectedNonQuietings (list 0 0 0)
 
     if initialValues = "All 0"[
+       set averageQuietingTendencies (list 0 0 0)
       set averageTestimonies (list 0 0 0 0)
       set averageQuietingDelta (list 0 0 0)
       set averageNonQuietingDelta (list 0 0 0)
       set averageQuietingUtility 0
     ]
     if initialValues = "Custom" [
+       set averageQuietingTendencies (list  0.5 0.5 0.5)
       set averageTestimonies (list 0.5 0.5 0.5 0.5)
       set averageQuietingDelta (list 0 0 0)
       set averageNonQuietingDelta (list 0 0 0)
@@ -345,6 +371,8 @@ to setupGroup [groupNumber]
       set averageTestimonies (list 0.5 0.5 0.5 0.5)
       let i random-float 1
       set averageQuietingDelta (list i i i)
+      set i random-float 1
+      set averageQuietingTendencies (list i i i)
       set averageNonQuietingDelta (list 0 0 0)
       set averageQuietingUtility random 10
     ]
@@ -565,7 +593,7 @@ to-report calculateExpectedUtility [agent countParticipants] ;calculated in roun
   report expectedUtility
 end
 
-to updateAverageThresholds [quieten? aggressor victim]
+to updateAverageThresholds [quieten? aggressor victim patchConsensus]
   ask victim [
     let delta 0
     if learningTendenciesType = "Difference to credence"[
@@ -574,23 +602,21 @@ to updateAverageThresholds [quieten? aggressor victim]
     if learningTendenciesType = "Difference to testimony"[
       set delta abs (testimony - [testimony] of aggressor)
     ]
-
+     let divergenceVictimConsensus abs (testimony - patchConsensus)
 
     if calculateTendenciesType = "Adjust expectations"[
-      let expectedQuieting? false
+      let expectedQuieting? ((item [groupType] of aggressor averageQuietingTendencies < delta) and (item [groupType] of aggressor averageQuietingTendencies < divergenceVictimConsensus))
 
-      if (item [groupType] of aggressor averageQuietingTendencies < delta) [
-        set expectedQuieting? true
-      ]
 
       if quieten? = TRUE and expectedQuieting? = FALSE [
 
-        set averageQuietingTendencies replace-item ([groupType] of aggressor) averageQuietingTendencies ((item [groupType] of aggressor averageQuietingTendencies) - 0.2)
+        set unexpectedQuietings replace-item ([groupType] of aggressor) unexpectedQuietings ((item [groupType] of aggressor unexpectedQuietings) + 1)
 
       ]
 
       if quieten? = FALSE and expectedQuieting? = TRUE [
-        set averageQuietingTendencies replace-item [groupType] of aggressor averageQuietingTendencies ((item [groupType] of aggressor averageQuietingTendencies) + 0.1)
+
+        set unexpectedNonQuietings replace-item ([groupType] of aggressor) unexpectedNonQuietings ((item [groupType] of aggressor unexpectedNonQuietings) + 1)
       ]
     ]
 
@@ -622,11 +648,11 @@ end
 GRAPHICS-WINDOW
 5
 10
-462
-468
+455
+461
 -1
 -1
-64.28571428571429
+90.0
 1
 10
 1
@@ -636,10 +662,10 @@ GRAPHICS-WINDOW
 1
 1
 1
--3
-3
--3
-3
+-2
+2
+-2
+2
 0
 0
 1
@@ -702,7 +728,7 @@ biasTypeA
 biasTypeA
 -1
 1
--0.2
+-0.3
 0.1
 1
 NIL
@@ -717,7 +743,7 @@ biasTypeB
 biasTypeB
 -1
 1
-0.0
+0.3
 0.1
 1
 NIL
@@ -786,7 +812,7 @@ SWITCH
 545
 employLearningFunction
 employLearningFunction
-0
+1
 1
 -1000
 
@@ -809,7 +835,7 @@ TEXTBOX
 742
 480
 941
-528
+500
 Epistemic Violence
 20
 0.0
@@ -839,7 +865,7 @@ worldDimensions
 worldDimensions
 2
 10
-6.0
+4.0
 2
 1
 NIL
@@ -853,7 +879,7 @@ SLIDER
 quietenThresholdA
 quietenThresholdA
 0.1
-0.3
+0.9
 0.1
 0.1
 1
@@ -868,7 +894,7 @@ SLIDER
 quietenThresholdB
 quietenThresholdB
 0.1
-0.3
+0.9
 0.1
 0.1
 1
@@ -1027,7 +1053,7 @@ CHOOSER
 quietingType
 quietingType
 "Ignore fully" "Slot in own credence" "Split the difference"
-1
+0
 
 TEXTBOX
 934
@@ -1050,13 +1076,13 @@ smotheringType
 0
 
 SWITCH
-1139
-553
-1283
-586
+812
+707
+956
+740
 experiment?
 experiment?
-0
+1
 1
 -1000
 
@@ -1068,7 +1094,7 @@ CHOOSER
 patchConsensusType
 patchConsensusType
 "Ommit own credence" "Add own credence"
-1
+0
 
 TEXTBOX
 91
@@ -1134,20 +1160,20 @@ staticOneHalfP
 -1000
 
 CHOOSER
-1094
-592
-1380
-637
+1089
+555
+1375
+600
 learningCredencesType
 learningCredencesType
 "Update only on what one wants to hear" "Update on the actual testimony"
 1
 
 CHOOSER
-1123
-646
-1340
-691
+1125
+654
+1342
+699
 learningTendenciesType
 learningTendenciesType
 "Difference to credence" "Difference to testimony"
@@ -1164,20 +1190,20 @@ Learning Function
 1
 
 CHOOSER
-1161
-702
-1299
-747
+1116
+708
+1254
+753
 initialValues
 initialValues
 "All 0" "All random" "Custom"
-1
+2
 
 SLIDER
-1239
-757
-1384
-790
+1257
+712
+1402
+745
 weightOfInput
 weightOfInput
 0.1
@@ -1354,20 +1380,20 @@ PrintUpdates?
 -1000
 
 CHOOSER
-1143
-796
-1349
-841
+1130
+602
+1336
+647
 calculateTendenciesType
 calculateTendenciesType
 "Split the means" "Adjust expectations"
-0
+1
 
 SLIDER
-1139
-754
-1236
-787
+711
+707
+808
+740
 w
 w
 0.1
@@ -1379,14 +1405,14 @@ NIL
 HORIZONTAL
 
 CHOOSER
-1286
-546
-1424
-591
+752
+748
+890
+793
 biasType
 biasType
 "None" "Perpetual" "Resolving"
-1
+2
 
 SWITCH
 709
@@ -1398,6 +1424,16 @@ additionalQuietingCondition
 1
 1
 -1000
+
+TEXTBOX
+777
+673
+927
+697
+Experiments
+20
+0.0
+1
 
 @#$#@#$#@
 ## WHAT IS IT?
