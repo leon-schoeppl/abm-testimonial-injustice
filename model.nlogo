@@ -222,7 +222,7 @@ to prepareGame ;agents move, group credences, testimony and distance from the tr
 
   ask people[
 
-    if calculateTendenciesType = "Adjust expectations"[
+    if employLearningFunction = true [if calculateTendenciesType = "Adjust expectations"[
       foreach [0 1 2][
         x ->
         set averageQuietingTendencies replace-item x averageQuietingTendencies (item x averageQuietingTendencies + 0.1 * item x unexpectedNonQuietings - 0.1 * item x unexpectedQuietings)
@@ -243,6 +243,7 @@ to prepareGame ;agents move, group credences, testimony and distance from the tr
       foreach [0 1 2][
         x ->
         set averageQuietingTendencies replace-item x averageQuietingTendencies ((item x averageQuietingDelta + item x averageNonQuietingDelta) / 2)
+    ]
     ]
     ]
 
@@ -337,8 +338,9 @@ to setupGroup [groupNumber]
     set size 0.3
     ;-----------------------------------------------------------------------------------------------------
     ;group specific features
-    set bias random-float 4 * (item groupNumber groupBiases) - item groupNumber groupBiases ;some people are outliers in their group!
+    set bias (random-float 4 * (item groupNumber groupBiases) - item groupNumber groupBiases) ;some people are outliers in their group!
     set credence objectiveChanceP + bias ; group bias influences distance from the truth
+    ;set credence objectiveChanceP + random-float 2 * (item groupNumber groupBiases)
     set quietenTendency random-float 2 * (item groupNumber GroupThresholds) ; group tendency influences individual threshold
     set groupType groupNumber
     set color item groupNumber groupColors
@@ -350,7 +352,7 @@ to setupGroup [groupNumber]
     ;learning function features
     set quietingCount (list 0 0 0 0)
     set encounters (list 0 0 0)
-       set unexpectedQuietings (list 0 0 0)
+    set unexpectedQuietings (list 0 0 0)
     set unexpectedNonQuietings (list 0 0 0)
 
     if initialValues = "All 0"[
@@ -504,9 +506,10 @@ to-report calculateExpectedPatchConsensus [agent countParticipants]
     ][
       set data groupCredences
     ]
+
     if patchConsensusType = "Add own credence" [
       ifelse groupType = 0 [
-        set expectedPatchConsensus (credence + ((item 0 countParticipants) - 1) * (item 0 data) + (item 1 countParticipants) * (item 1 data) + (item 2 countParticipants) * (item 2 data))
+        set result (credence + ((item 0 countParticipants) - 1) * (item 0 data) + (item 1 countParticipants) * (item 1 data) + (item 2 countParticipants) * (item 2 data))
       ][
         ifelse groupType = 1[
           set result (credence + (item 0 countParticipants) * (item 0 data) + ((item 1 countParticipants) - 1) * (item 1 data) + (item 2 countParticipants) * (item 2 data))
@@ -517,7 +520,7 @@ to-report calculateExpectedPatchConsensus [agent countParticipants]
       set result result / (item 3 countParticipants)
     ]
 
-    if patchConsensusType = "Ommit own credence" [
+    if patchConsensusType = "Omit own credence" [
       ifelse groupType = 0 [
         set result (((item 0 countParticipants) - 1) * (item 0 data) + (item 1 countParticipants) * (item 1 data) + (item 2 countParticipants) * (item 2 data))
       ][
@@ -530,6 +533,7 @@ to-report calculateExpectedPatchConsensus [agent countParticipants]
       set result result / ((item 3 countParticipants) - 1)
     ]
   ]
+
   report result
 end
 
@@ -596,13 +600,16 @@ end
 to updateAverageThresholds [quieten? aggressor victim patchConsensus]
   ask victim [
     let delta 0
+
     if learningTendenciesType = "Difference to credence"[
       set delta abs (testimony - [credence] of aggressor)
     ]
+
     if learningTendenciesType = "Difference to testimony"[
       set delta abs (testimony - [testimony] of aggressor)
     ]
-     let divergenceVictimConsensus abs (testimony - patchConsensus)
+
+    let divergenceVictimConsensus abs (testimony - patchConsensus)
 
     if calculateTendenciesType = "Adjust expectations"[
       let expectedQuieting? ((item [groupType] of aggressor averageQuietingTendencies < delta) and (item [groupType] of aggressor averageQuietingTendencies < divergenceVictimConsensus))
@@ -620,25 +627,18 @@ to updateAverageThresholds [quieten? aggressor victim patchConsensus]
       ]
     ]
 
-    if calculateTendenciesType = "Split the means"[
+    if calculateTendenciesType = "Split the means" [
       ifelse quieten? = true[
         let violentEncounterCount (item ([groupType] of aggressor) quietingCount + 1)
         set averageQuietingDelta replace-item ([groupType] of aggressor) averageQuietingDelta (((item ([groupType] of aggressor) averageQuietingDelta) * (violentEncounterCount - 1) + delta) / violentEncounterCount)
       ][
-
         let nonViolentEncounterCount (item ([groupType] of aggressor) encounters + 1 - item ([groupType] of aggressor) quietingCount)
         if nonViolentEncounterCount > 0 [
-
           set averageNonQuietingDelta replace-item ([groupType] of aggressor) averageNonQuietingDelta (((item ([groupType] of aggressor) averageNonQuietingDelta) * (nonViolentEncountercount - 1) + delta) / nonViolentEncounterCount)
         ]
       ]
     ]
-    ;put in a proper way for agents to learn, possibly bayesian updating
-
   ]
-
-
-
 end
 
 
@@ -681,7 +681,7 @@ countTypeA
 countTypeA
 10
 200
-100.0
+140.0
 10
 1
 NIL
@@ -728,7 +728,7 @@ biasTypeA
 biasTypeA
 -1
 1
--0.3
+-0.4
 0.1
 1
 NIL
@@ -743,7 +743,7 @@ biasTypeB
 biasTypeB
 -1
 1
-0.3
+0.0
 0.1
 1
 NIL
@@ -812,7 +812,7 @@ SWITCH
 545
 employLearningFunction
 employLearningFunction
-1
+0
 1
 -1000
 
@@ -850,7 +850,7 @@ penaltySmothering
 penaltySmothering
 0
 10
-5.0
+3.0
 1
 1
 NIL
@@ -1014,7 +1014,7 @@ SWITCH
 617
 allowInjustice
 allowInjustice
-1
+0
 1
 -1000
 
@@ -1082,7 +1082,7 @@ SWITCH
 740
 experiment?
 experiment?
-1
+0
 1
 -1000
 
@@ -1093,8 +1093,8 @@ CHOOSER
 677
 patchConsensusType
 patchConsensusType
-"Ommit own credence" "Add own credence"
-0
+"Omit own credence" "Add own credence"
+1
 
 TEXTBOX
 91
@@ -1190,25 +1190,25 @@ Learning Function
 1
 
 CHOOSER
-1116
-708
-1254
-753
+1149
+704
+1287
+749
 initialValues
 initialValues
 "All 0" "All random" "Custom"
 2
 
 SLIDER
-1257
-712
-1402
-745
+429
+577
+574
+610
 weightOfInput
 weightOfInput
 0.1
 0.9
-0.1
+0.3
 0.1
 1
 NIL
@@ -1412,7 +1412,7 @@ CHOOSER
 biasType
 biasType
 "None" "Perpetual" "Resolving"
-2
+0
 
 SWITCH
 709
