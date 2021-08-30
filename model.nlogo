@@ -1,6 +1,4 @@
-extensions [array]
 breed[people person]
-
 
 people-own[
   groupType ;which group does the agent belong to
@@ -140,25 +138,19 @@ end
 
 to doExperiments ;agents slowly get closer to the truth on their own
   ask people[
-
-
     if biasType = "Perpetual" [
-
-          set credence (w * (objectiveChanceP + random-float 1 * Bias) + (1 - w) * credence)
-
+      set credence (w * (objectiveChanceP + random-float 1 * Bias) + (1 - w) * credence)
     ]
 
     if biasType = "Resolving"  [
       let delta abs (credence - objectiveChanceP)
       set credence ( w * (objectiveChanceP + bias * delta) + (1 - w) * credence)
-
     ]
 
     if biasType = "None" [
       set credence (w * objectiveChanceP + (1 - w) * credence)
     ]
   ]
-
 end
 
 to skipGame ;if the simulation disallows testimonial injustice, everyone just updates by splitting the difference with the mean of the other participants
@@ -176,7 +168,6 @@ to skipGame ;if the simulation disallows testimonial injustice, everyone just up
         ]
         set input input / (countParticipants - 1)
         set credence (input * weightOfInput) + (credence * (1 - weightOfInput));update credence after collecting all the input from the game
-
       ]
     ]
   ]
@@ -222,29 +213,30 @@ to prepareGame ;agents move, group credences, testimony and distance from the tr
 
   ask people[
 
-    if employLearningFunction = true [if calculateTendenciesType = "Adjust expectations"[
-      foreach [0 1 2][
-        x ->
-        set averageQuietingTendencies replace-item x averageQuietingTendencies (item x averageQuietingTendencies + 0.1 * item x unexpectedNonQuietings - 0.1 * item x unexpectedQuietings)
-         if item x averageQuietingTendencies < 0 [
-         set averageQuietingTendencies replace-item x averageQuietingTendencies 0
-      ]
-       if item x averageQuietingTendencies > 1 [
-         set averageQuietingTendencies replace-item x averageQuietingTendencies 1
-      ]
+    if employLearningFunction = true [
+      if calculateTendenciesType = "Adjust expectations"[
+        foreach [0 1 2][
+          x ->
+          set averageQuietingTendencies replace-item x averageQuietingTendencies (item x averageQuietingTendencies + 0.1 * item x unexpectedNonQuietings - 0.1 * item x unexpectedQuietings)
+          if item x averageQuietingTendencies < 0 [
+            set averageQuietingTendencies replace-item x averageQuietingTendencies 0
+          ]
+          if item x averageQuietingTendencies > 1 [
+            set averageQuietingTendencies replace-item x averageQuietingTendencies 1
+          ]
+        ]
+
+        set unexpectedQuietings (list 0 0 0)
+        set unexpectedNonQuietings (list 0 0 0)
       ]
 
-      set unexpectedQuietings (list 0 0 0)
-      set unexpectedNonQuietings (list 0 0 0)
-    ]
 
-
-    if calculateTendenciesType = "Split the means"[
-      foreach [0 1 2][
-        x ->
-        set averageQuietingTendencies replace-item x averageQuietingTendencies ((item x averageQuietingDelta + item x averageNonQuietingDelta) / 2)
-    ]
-    ]
+      if calculateTendenciesType = "Split the means"[
+        foreach [0 1 2][
+          x ->
+          set averageQuietingTendencies replace-item x averageQuietingTendencies ((item x averageQuietingDelta + item x averageNonQuietingDelta) / 2)
+        ]
+      ]
     ]
 
 
@@ -534,6 +526,9 @@ to-report calculateExpectedPatchConsensus [agent countParticipants]
     ]
   ]
 
+ ; print "groupType"
+  ;print groupType
+  ;print result
   report result
 end
 
@@ -594,6 +589,8 @@ to-report calculateExpectedUtility [agent countParticipants] ;calculated in roun
       ]
     ]
   ]
+  ;print groupType
+  ;print expectedUtility
   report expectedUtility
 end
 
@@ -642,14 +639,12 @@ to updateAverageThresholds [quieten? aggressor victim patchConsensus]
 end
 
 
-
-
 @#$#@#$#@
 GRAPHICS-WINDOW
 5
 10
-455
 461
+467
 -1
 -1
 90.0
@@ -681,7 +676,7 @@ countTypeA
 countTypeA
 10
 200
-140.0
+100.0
 10
 1
 NIL
@@ -743,7 +738,7 @@ biasTypeB
 biasTypeB
 -1
 1
-0.0
+0.2
 0.1
 1
 NIL
@@ -806,20 +801,20 @@ PENS
 "Group C" 1.0 0 -6459832 true "" "plot item 2 groupCredences"
 
 SWITCH
-1122
-512
-1324
-545
+1089
+519
+1326
+552
 employLearningFunction
 employLearningFunction
-0
+1
 1
 -1000
 
 SLIDER
 738
 510
-918
+920
 543
 penaltyPerPerson
 penaltyPerPerson
@@ -842,15 +837,15 @@ Epistemic Violence
 1
 
 SLIDER
-736
+738
 546
-924
+920
 579
 penaltySmothering
 penaltySmothering
 0
 10
-3.0
+0.0
 1
 1
 NIL
@@ -1008,10 +1003,10 @@ B
 1
 
 SWITCH
-755
-584
-907
-617
+738
+582
+983
+615
 allowInjustice
 allowInjustice
 0
@@ -1046,20 +1041,20 @@ TEXTBOX
 1
 
 CHOOSER
-211
-631
-411
-676
+174
+625
+374
+670
 quietingType
 quietingType
 "Ignore fully" "Slot in own credence" "Split the difference"
 0
 
 TEXTBOX
-934
-513
-1084
-573
+922
+511
+983
+571
 |\n| Average\n| Values\n|
 12
 0.0
@@ -1068,7 +1063,7 @@ TEXTBOX
 CHOOSER
 1
 577
-421
+363
 622
 smotheringType
 smotheringType
@@ -1076,25 +1071,25 @@ smotheringType
 0
 
 SWITCH
-812
-707
-956
-740
+735
+700
+907
+733
 experiment?
 experiment?
-0
+1
 1
 -1000
 
 CHOOSER
-0
-632
-200
-677
+1
+625
+172
+670
 patchConsensusType
 patchConsensusType
 "Omit own credence" "Add own credence"
-1
+0
 
 TEXTBOX
 91
@@ -1162,7 +1157,7 @@ staticOneHalfP
 CHOOSER
 1089
 555
-1375
+1326
 600
 learningCredencesType
 learningCredencesType
@@ -1170,45 +1165,45 @@ learningCredencesType
 1
 
 CHOOSER
-1125
-654
-1342
-699
+1089
+649
+1326
+694
 learningTendenciesType
 learningTendenciesType
 "Difference to credence" "Difference to testimony"
 1
 
 TEXTBOX
-1142
-482
-1330
-509
+1116
+486
+1304
+513
 Learning Function
 20
 0.0
 1
 
 CHOOSER
-1149
-704
-1287
-749
+1089
+696
+1327
+741
 initialValues
 initialValues
 "All 0" "All random" "Custom"
 2
 
 SLIDER
-429
+364
 577
-574
+509
 610
 weightOfInput
 weightOfInput
 0.1
 0.9
-0.3
+0.1
 0.1
 1
 NIL
@@ -1380,9 +1375,9 @@ PrintUpdates?
 -1000
 
 CHOOSER
-1130
+1089
 602
-1336
+1326
 647
 calculateTendenciesType
 calculateTendenciesType
@@ -1390,35 +1385,35 @@ calculateTendenciesType
 1
 
 SLIDER
-711
-707
-808
-740
+735
+736
+907
+769
 w
 w
+0.01
 0.1
-0.5
-0.1
-0.1
+0.01
+0.01
 1
 NIL
 HORIZONTAL
 
 CHOOSER
-752
-748
-890
-793
+735
+771
+907
+816
 biasType
 biasType
 "None" "Perpetual" "Resolving"
 0
 
 SWITCH
-709
-623
-965
-656
+737
+616
+982
+649
 additionalQuietingCondition
 additionalQuietingCondition
 1
@@ -1426,10 +1421,10 @@ additionalQuietingCondition
 -1000
 
 TEXTBOX
-777
-673
-927
-697
+757
+671
+907
+695
 Experiments
 20
 0.0
