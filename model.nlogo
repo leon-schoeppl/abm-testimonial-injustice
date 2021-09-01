@@ -330,9 +330,12 @@ to setupGroup [groupNumber]
     set size 0.3
     ;-----------------------------------------------------------------------------------------------------
     ;group specific features
-    set bias (random-float 4 * (item groupNumber groupBiases) - item groupNumber groupBiases) ;some people are outliers in their group!
-    set credence objectiveChanceP + bias ; group bias influences distance from the truth
-    ;set credence objectiveChanceP + random-float 2 * (item groupNumber groupBiases)
+    ifelse allowOutliers = TRUE [
+      set bias (random-float 4 * (item groupNumber groupBiases) - item groupNumber groupBiases) ;some people are outliers in their group!
+    ][
+      set bias random-float 2 * (item groupNumber groupBiases)
+    ]
+    set credence objectiveChanceP + bias
     set quietenTendency random-float 2 * (item groupNumber GroupThresholds) ; group tendency influences individual threshold
     set groupType groupNumber
     set color item groupNumber groupColors
@@ -638,13 +641,12 @@ to updateAverageThresholds [quieten? aggressor victim patchConsensus]
   ]
 end
 
-
 @#$#@#$#@
 GRAPHICS-WINDOW
 5
 10
-461
-467
+463
+469
 -1
 -1
 90.0
@@ -723,7 +725,7 @@ biasTypeA
 biasTypeA
 -1
 1
--0.4
+-0.2
 0.1
 1
 NIL
@@ -738,7 +740,7 @@ biasTypeB
 biasTypeB
 -1
 1
-0.2
+0.0
 0.1
 1
 NIL
@@ -807,7 +809,7 @@ SWITCH
 552
 employLearningFunction
 employLearningFunction
-1
+0
 1
 -1000
 
@@ -1077,7 +1079,7 @@ SWITCH
 733
 experiment?
 experiment?
-1
+0
 1
 -1000
 
@@ -1203,7 +1205,7 @@ weightOfInput
 weightOfInput
 0.1
 0.9
-0.1
+0.3
 0.1
 1
 NIL
@@ -1429,6 +1431,17 @@ Experiments
 20
 0.0
 1
+
+SWITCH
+211
+859
+359
+892
+allowOutliers
+allowOutliers
+1
+1
+-1000
 
 @#$#@#$#@
 ## WHAT IS IT?
