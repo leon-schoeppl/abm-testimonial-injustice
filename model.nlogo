@@ -1,10 +1,10 @@
 breed[people person]
 
 people-own[
-  groupType ;which group does the agent belong to
+  groupType ;which group does the agent belong to?
   credence ;what is the agents credence in the proposition?
-  bias
-  quietenTendency ;how quick is the agent to quieten those of diverging identity?
+  bias ;how biased is this particular agent?
+  quietenTendency ;how quick is the agent to quieten those of diverging identity? (threshold value)
   utilityQuieting ;how bad an instance of quieting committed by this agent is for the victim
   utilitySmothering ;how bad an instance of smothering is for this agent themself
   expectedPatchConsensus ;calculated in round 1 of each game, based on who else is present on the patch
@@ -228,6 +228,14 @@ to prepareGame ;agents move, group credences, testimony and distance from the tr
 
         set unexpectedQuietings (list 0 0 0)
         set unexpectedNonQuietings (list 0 0 0)
+      ]
+
+      if calculateTendenciesType = "Know objective values"[
+        foreach [0 1 2][
+          x ->
+          set averageQuietingTendencies replace-item x averageQuietingTendencies ((item x groupThresholds))
+        ]
+
       ]
 
 
@@ -551,7 +559,6 @@ end
 
 to-report calculateExpectedUtility [agent countParticipants] ;calculated in round 2 of each game, based on expected patch consensus and expected divergence ;add more conditions here
   let expectedUtility 0
-
   ask agent[
     let relevantPenalty 0
     let relevantThresholds 0
@@ -627,6 +634,10 @@ to updateAverageThresholds [quieten? aggressor victim patchConsensus]
       ]
     ]
 
+    if calculateTendenciesType = "Know objective values"[
+      ;do nothing
+    ]
+
     if calculateTendenciesType = "Split the means" [
       ifelse quieten? = true[
         let violentEncounterCount (item ([groupType] of aggressor) quietingCount + 1)
@@ -640,7 +651,6 @@ to updateAverageThresholds [quieten? aggressor victim patchConsensus]
     ]
   ]
 end
-
 @#$#@#$#@
 GRAPHICS-WINDOW
 5
@@ -847,7 +857,7 @@ penaltySmothering
 penaltySmothering
 0
 10
-0.0
+3.0
 1
 1
 NIL
@@ -1205,7 +1215,7 @@ weightOfInput
 weightOfInput
 0.1
 0.9
-0.3
+0.1
 0.1
 1
 NIL
@@ -1383,8 +1393,8 @@ CHOOSER
 647
 calculateTendenciesType
 calculateTendenciesType
-"Split the means" "Adjust expectations"
-1
+"Split the means" "Adjust expectations" "Know objective values"
+2
 
 SLIDER
 735
@@ -1409,7 +1419,7 @@ CHOOSER
 biasType
 biasType
 "None" "Perpetual" "Resolving"
-0
+2
 
 SWITCH
 737
@@ -1439,7 +1449,7 @@ SWITCH
 892
 allowOutliers
 allowOutliers
-1
+0
 1
 -1000
 
