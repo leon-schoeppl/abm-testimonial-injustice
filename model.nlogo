@@ -1,3 +1,4 @@
+extensions [array]
 breed[people person]
 
 people-own[
@@ -26,7 +27,6 @@ people-own[
 
 globals[
   objectiveChanceP ;value of the standpoint epistemological proposition that agents have credences about
-  objectiveChanceQ ;value of the independent proposition
   countPeople ;total number of agents in the simulation
   ;-----------------------------------------------------------------------------------------------------------------
   ; groups 0 (A) , 1 (B) and 2 (C) (, and 3 is (if applicable) the total of all groups)
@@ -78,9 +78,9 @@ end
 to playGame ;determines the agent-sets for the game and lets them play three rounds
   ask patches [
     let participants turtles-here
-    let countParticipants (list (count turtles-here with [groupType = 0]) (count turtles-here with [groupType = 1]) (count turtles-here with [groupType = 2]) (count participants))
+    let countParticipants array:from-list (list (count turtles-here with [groupType = 0]) (count turtles-here with [groupType = 1]) (count turtles-here with [groupType = 2]) (count participants))
 
-    if item 3 countParticipants > 1 [ ;no solo-games
+    if array:item countParticipants 3 > 1 [ ;no solo-games
       ;-------------------------------------------------------------------------------------------
       ;-------------------------------------------------------------------------------------------
       ;" round 1"
@@ -103,7 +103,7 @@ to playGame ;determines the agent-sets for the game and lets them play three rou
       let patchConsensus calculatePatchConsensus participants countParticipants
 
       ask participants [
-        let relevantParticipantCount ((item 3 countParticipants) - 1)
+        let relevantParticipantCount ((array:item countParticipants 3) - 1)
         let inputFromThisGame 0
 
         ask other participants[
@@ -174,12 +174,12 @@ to skipGame ;if the simulation disallows testimonial injustice, everyone just up
 end
 
 to setupAgents
-  set groupColors (list orange blue brown)
-  set groupBiases (list biasTypeA biasTypeB biasTypeC)
-  set groupCounts (list countTypeA countTypeB countTypeC)
-  set countPeople item 0 groupCounts + item 1 groupCounts + item 2 groupCounts
-  set groupPercentages (list ((countTypeA / countPeople) * 100) ((countTypeB / countPeople) * 100) ((countTypeC / countPeople) * 100))
-  set groupThresholds (list quietenThresholdA quietenThresholdB quietenThresholdC)
+  set groupColors array:from-list (list orange blue brown)
+  set groupBiases array:from-list (list biasTypeA biasTypeB biasTypeC)
+  set groupCounts array:from-list (list countTypeA countTypeB countTypeC)
+  set countPeople array:item groupCounts 0 + array:item groupCounts 2 + array:item groupCounts 2
+  set groupPercentages array:from-list (list ((countTypeA / countPeople) * 100) ((countTypeB / countPeople) * 100) ((countTypeC / countPeople) * 100))
+  set groupThresholds array:from-list (list quietenThresholdA quietenThresholdB quietenThresholdC)
 
   ;creates the agents of each group
   setupGroup 0
@@ -200,40 +200,41 @@ to setupWorld
   ]
   ifelse staticOneHalfP = FALSE [set objectiveChanceP random-float 1][set objectiveChanceP 0.5]
 
-  set quietingCounterTotals (list 0 0 0 0)
-  set smotheringCounterTotals (list 0 0 0 0)
+  set quietingCounterTotals array:from-list (list 0 0 0 0)
+  set smotheringCounterTotals array:from-list (list 0 0 0 0)
 
 end
 
 to prepareGame ;agents move, group credences, testimony and distance from the truth are updated
   resetValues
 
-  set quietingCounterTotals replace-item 3 quietingCounterTotals (item 0 quietingCounterTotals + item 1 quietingCounterTotals + item 2 quietingCounterTotals)
-  set smotheringCounterTotals replace-item 3 smotheringCounterTotals (item 0 smotheringCounterTotals + item 1 smotheringCounterTotals + item 2 smotheringCounterTotals)
+  ; Update the all-groups totals of quieting and smothering
+  array:set quietingCounterTotals 3 (array:item quietingCounterTotals 0 + array:item quietingCounterTotals 1 + array:item quietingCounterTotals 2)
+  array:set smotheringCounterTotals 3 (array:item smotheringCounterTotals 0 + array:item smotheringCounterTotals 1 + array:item smotheringCounterTotals 2)
 
-  ask people[
+    ask people[
 
     if employLearningFunction = true [
       if calculateTendenciesType = "Adjust expectations"[
         foreach [0 1 2][
           x ->
-          set averageQuietingTendencies replace-item x averageQuietingTendencies (item x averageQuietingTendencies + 0.1 * item x unexpectedNonQuietings - 0.1 * item x unexpectedQuietings)
-          if item x averageQuietingTendencies < 0 [
-            set averageQuietingTendencies replace-item x averageQuietingTendencies 0
+          array:set averageQuietingTendencies x (array:item averageQuietingTendencies x + 0.1 * array:item unexpectedNonQuietings x - 0.1 * array:item unexpectedQuietings x)
+          if array:item averageQuietingTendencies x < 0 [
+            array:set averageQuietingTendencies x 0
           ]
-          if item x averageQuietingTendencies > 1 [
-            set averageQuietingTendencies replace-item x averageQuietingTendencies 1
+          if array:item averageQuietingTendencies x > 1 [
+            array:set averageQuietingTendencies x 1
           ]
         ]
 
-        set unexpectedQuietings (list 0 0 0)
-        set unexpectedNonQuietings (list 0 0 0)
+        set unexpectedQuietings array:from-list (list 0 0 0)
+        set unexpectedNonQuietings array:from-list (list 0 0 0)
       ]
 
       if calculateTendenciesType = "Know objective values"[
         foreach [0 1 2][
           x ->
-          set averageQuietingTendencies replace-item x averageQuietingTendencies ((item x groupThresholds))
+          array:set averageQuietingTendencies x array:item groupThresholds x
         ]
 
       ]
@@ -242,7 +243,7 @@ to prepareGame ;agents move, group credences, testimony and distance from the tr
       if calculateTendenciesType = "Split the means"[
         foreach [0 1 2][
           x ->
-          set averageQuietingTendencies replace-item x averageQuietingTendencies ((item x averageQuietingDelta + item x averageNonQuietingDelta) / 2)
+          array:set averageQuietingTendencies x ((array:item averageQuietingDelta x + array:item averageNonQuietingDelta x) / 2)
         ]
       ]
     ]
@@ -254,37 +255,41 @@ to prepareGame ;agents move, group credences, testimony and distance from the tr
     left (random 10) - 5
     set meanDistance meanDistance + abs (objectiveChanceP - credence)
 
-    set groupCredences replace-item groupType groupCredences ((item groupType groupCredences) + credence)
-    set groupTestimonies replace-item groupType groupTestimonies ((item groupType groupTestimonies) + testimony)
+    array:set groupCredences groupType (array:item groupCredences groupType + credence)
+    array:set groupTestimonies groupType (array:item groupTestimonies groupType + testimony)
     set averagePenalty averagePenalty + utilityQuieting
 
 
 
     ;update what agents believe about others
-    set credencesAboutA replace-item groupType credencesAboutA ((item groupType credencesAboutA) + item 0 averageTestimonies)
-    set credencesAboutB replace-item groupType credencesAboutB ((item groupType credencesAboutB) + item 1 averageTestimonies)
-    set credencesAboutC replace-item groupType credencesAboutC ((item groupType credencesAboutC) + item 2 averageTestimonies)
-    set credencesAboutThresholdsA replace-item groupType credencesAboutThresholdsA ((item groupType credencesAboutThresholdsA) + item 0 averageQuietingTendencies)
-    set credencesAboutThresholdsB replace-item groupType credencesAboutThresholdsB ((item groupType credencesAboutThresholdsB) + item 1 averageQuietingTendencies)
-    set credencesAboutThresholdsC replace-item groupType credencesAboutThresholdsC ((item groupType credencesAboutThresholdsC) + item 2 averageQuietingTendencies)
-    set credencesAboutPenalty replace-item groupType credencesAboutPenalty ((item groupType credencesAboutPenalty) + averageQuietingUtility)
-    set averageThresholds replace-item groupType averageThresholds ((item groupType averageThresholds) + quietenTendency)
+    array:set credencesAboutA groupType (array:item credencesAboutA groupType + array:item averageTestimonies 0)
+    array:set credencesAboutB groupType (array:item credencesAboutB groupType + array:item averageTestimonies 1)
+    array:set credencesAboutC groupType (array:item credencesAboutC groupType + array:item averageTestimonies 2)
+
+    array:set credencesAboutThresholdsA groupType (array:item credencesAboutThresholdsA groupType + array:item averageQuietingTendencies 0)
+    array:set credencesAboutThresholdsB groupType (array:item credencesAboutThresholdsB groupType + array:item averageQuietingTendencies 1)
+    array:set credencesAboutThresholdsC groupType (array:item credencesAboutThresholdsC groupType + array:item averageQuietingTendencies 2)
+
+    array:set credencesAboutPenalty groupType (array:item credencesAboutPenalty groupType + averageQuietingUtility)
+    array:set averageThresholds groupType (array:item averageThresholds groupType + quietenTendency)
+
+
   ]
 
   foreach [0 1 2] [
     x ->
-    if item x groupCounts > 0 [
-      set groupCredences replace-item x groupCredences (item x groupCredences / item x groupCounts)
-      set groupTestimonies replace-item x groupTestimonies (item x groupTestimonies / item x groupCounts)
-      set credencesAboutA replace-item x credencesAboutA ((item x credencesAboutA) / item x groupCounts)
-      set credencesAboutB replace-item x credencesAboutB ((item x credencesAboutB) / item x groupCounts)
-      set credencesAboutC replace-item x credencesAboutC ((item x credencesAboutC) / item x groupCounts)
-      set credencesAboutThresholdsA replace-item x credencesAboutThresholdsA ((item x credencesAboutThresholdsA) / item x groupCounts)
-      set credencesAboutThresholdsB replace-item x credencesAboutThresholdsB ((item x credencesAboutThresholdsB) / item x groupCounts)
-      set credencesAboutThresholdsC replace-item x credencesAboutThresholdsC ((item x credencesAboutThresholdsC) / item x groupCounts)
-      set credencesAboutPenalty replace-item x credencesAboutPenalty ((item x credencesAboutPenalty) / item x groupCounts)
-      set averageThresholds replace-item x averageThresholds (item x averageThresholds / item x groupCounts)
-    ]
+    if array:item groupCounts x > 0 [
+      array:set groupCredences x (array:item groupCredences x / array:item groupCounts x)
+      array:set groupTestimonies x (array:item groupTestimonies x / array:item groupCounts x)
+      array:set credencesAboutA x (array:item credencesAboutA x / array:item groupCounts x)
+      array:set credencesAboutB x (array:item credencesAboutB x / array:item groupCounts x)
+      array:set credencesAboutC x (array:item credencesAboutC x / array:item groupCounts x)
+      array:set credencesAboutThresholdsA x (array:item credencesAboutThresholdsA x / array:item groupCounts x)
+      array:set credencesAboutThresholdsB x (array:item credencesAboutThresholdsB x / array:item groupCounts x)
+      array:set credencesAboutThresholdsC x (array:item credencesAboutThresholdsC x / array:item groupCounts x)
+      array:set credencesAboutPenalty x (array:item credencesAboutPenalty x / array:item groupCounts x)
+      array:set averageThresholds x (array:item averageThresholds x / array:item groupCounts x)
+          ]
   ]
   set averagePenalty averagePenalty / countPeople
   set meanDistance meanDistance / countPeople
@@ -292,28 +297,28 @@ to prepareGame ;agents move, group credences, testimony and distance from the tr
 end
 
 to resetValues
-  set groupCredences (list 0 0 0)
-  set groupTestimonies (list 0 0 0)
-  set credencesAboutA (list 0 0 0)
-  set credencesAboutB (list 0 0 0)
-  set credencesAboutC (list 0 0 0)
-  set credencesAboutThresholdsA (list 0 0 0)
-  set credencesAboutThresholdsB (list 0 0 0)
-  set credencesAboutThresholdsC (list 0 0 0)
-  set credencesAboutPenalty (list 0 0 0)
+  set groupCredences array:from-list (list 0 0 0)
+  set groupTestimonies array:from-list (list 0 0 0)
+  set credencesAboutA array:from-list (list 0 0 0)
+  set credencesAboutB array:from-list (list 0 0 0)
+  set credencesAboutC array:from-list (list 0 0 0)
+  set credencesAboutThresholdsA array:from-list (list 0 0 0)
+  set credencesAboutThresholdsB array:from-list (list 0 0 0)
+  set credencesAboutThresholdsC array:from-list (list 0 0 0)
+  set credencesAboutPenalty array:from-list (list 0 0 0)
   set meanDistance 0
   set quietingCounter 0
   set smotheringCounter 0
   set averagePenalty 0
-  set averageThresholds (list 0 0 0)
+  set averageThresholds array:from-list (list 0 0 0)
 end
 
 to printUpdate
   print "--------------------------------------------------------------------------------------"
-  print(word "After round " ticks " the average credence in P is " (precision (item 0 groupCredences) 3) " for group A, " (precision (item 1 groupCredences) 3) " for group B, and " (precision (item 2 groupCredences) 3) " for group C.")
-  print(word "The average testimony given by members of group A is " (precision (item 0 groupTestimonies) 3) ", while for members of group B it is " (precision (item 1 groupTestimonies) 3) " and for members of group C it is " (precision (item 2 groupTestimonies) 3) ".")
+  print(word "After round " ticks " the average credence in P is " (precision (array:item groupCredences 0) 3) " for group A, " (precision (array:item groupCredences 1) 3) " for group B, and " (precision (array:item groupCredences 2) 3) " for group C.")
+  print(word "The average testimony given by members of group A is " (precision (array:item groupTestimonies 0) 3) ", while for members of group B it is " (precision (array:item groupTestimonies 1) 3) " and for members of group C it is " (precision (array:item groupTestimonies 2) 3) ".")
   print(word "The mean distance from the truth for the whole population of agents is currently " (precision meanDistance 3) ".")
-  print(word "This round " smotheringCounter " agents tailored their testimony (total of "item 3 smotheringCounterTotals ") , and  " quietingCounter " individual instances of quieting were committed (total of " item 3 quietingCounterTotals ").")
+  print(word "This round " smotheringCounter " agents tailored their testimony (total of " array:item smotheringCounterTotals 3 ") , and  " quietingCounter " individual instances of quieting were committed (total of " array:item quietingCounterTotals 3").")
 end
 
 to printSetup
@@ -322,13 +327,13 @@ to printSetup
   print "--------------------------------------------------------------------------------------"
   print(word "New simulation started @ "date-and-time)
   print(word "In this simulation the objective value of the proposition is " (precision objectiveChanceP 3) ".")
-  print (word "It contains " countPeople " agents, " (precision item 0 groupPercentages 1) "% group A, " (precision item 1 groupPercentages 1) "% group B and " (precision item 2 groupPercentages 1) "% group C.")
-  print(word "The average credence in P is " (precision (item 0 groupCredences) 3) " for group A, " (precision (item 1 groupCredences) 3) " for group B, and " (precision (item 2 groupCredences) 3) " for group C.")
+  print (word "It contains " countPeople " agents, " (precision (array:item groupPercentages 0) 1) "% group A, " (precision (array:item groupPercentages 1) 1) "% group B and " (precision (array:item groupPercentages 2) 1) "% group C.")
+  print(word "The average credence in P is " (precision (array:item groupCredences 0) 3) " for group A, " (precision (array:item groupCredences 1) 3) " for group B, and " (precision (array:item groupCredences 2) 3) " for group C.")
   print(word "The mean distance from the truth for the whole population of agents starts at " (precision meanDistance 3) ".")
 end
 
 to setupGroup [groupNumber]
-  create-people item groupNumber groupCounts[
+  create-people array:item groupCounts groupNumber[
     ;-----------------------------------------------------------------------------------------------------
     ;basic features
     set xcor random-xcor
@@ -339,46 +344,46 @@ to setupGroup [groupNumber]
     ;-----------------------------------------------------------------------------------------------------
     ;group specific features
     ifelse allowOutliers = TRUE [
-      set bias (random-float 4 * (item groupNumber groupBiases) - item groupNumber groupBiases) ;some people are outliers in their group!
+      set bias (random-float 4 * (array:item groupBiases groupNumber) - array:item groupBiases groupNumber) ;some people are outliers in their group!
     ][
-      set bias random-float 2 * (item groupNumber groupBiases)
+      set bias random-float 2 * (array:item groupBiases groupNumber)
     ]
     set credence objectiveChanceP + bias
-    set quietenTendency random-float 2 * (item groupNumber GroupThresholds) ; group tendency influences individual threshold
+    set quietenTendency random-float 2 * (array:item groupThresholds groupNumber) ; group tendency influences individual threshold
     set groupType groupNumber
-    set color item groupNumber groupColors
+    set color array:item groupColors groupNumber
     ;-----------------------------------------------------------------------------------------------------
     ;utility function features
     set utilityQuieting random-float (2 * penaltyPerPerson) ;this is how bad an act of quieting committed by this agent is
     set utilitySmothering random-float (2 * penaltySmothering) ;this is how badly this agent suffers from smothering
     ;-----------------------------------------------------------------------------------------------------
     ;learning function features
-    set quietingCount (list 0 0 0 0)
-    set encounters (list 0 0 0)
-    set unexpectedQuietings (list 0 0 0)
-    set unexpectedNonQuietings (list 0 0 0)
+    set quietingCount array:from-list (list 0 0 0 0)
+    set encounters array:from-list (list 0 0 0)
+    set unexpectedQuietings array:from-list (list 0 0 0)
+    set unexpectedNonQuietings array:from-list (list 0 0 0)
 
     if initialValues = "All 0"[
-       set averageQuietingTendencies (list 0 0 0)
-      set averageTestimonies (list 0 0 0 0)
-      set averageQuietingDelta (list 0 0 0)
-      set averageNonQuietingDelta (list 0 0 0)
+      set averageQuietingTendencies array:from-list (list 0 0 0)
+      set averageTestimonies array:from-list (list 0 0 0 0)
+      set averageQuietingDelta array:from-list (list 0 0 0)
+      set averageNonQuietingDelta array:from-list (list 0 0 0)
       set averageQuietingUtility 0
     ]
     if initialValues = "Custom" [
-       set averageQuietingTendencies (list  0.5 0.5 0.5)
-      set averageTestimonies (list 0.5 0.5 0.5 0.5)
-      set averageQuietingDelta (list 0 0 0)
-      set averageNonQuietingDelta (list 0 0 0)
+      set averageQuietingTendencies array:from-list (list  0.5 0.5 0.5)
+      set averageTestimonies array:from-list (list 0.5 0.5 0.5 0.5)
+      set averageQuietingDelta array:from-list (list 0 0 0)
+      set averageNonQuietingDelta array:from-list (list 0 0 0)
       set averageQuietingUtility 2
     ]
     if initialValues = "All random" [
-      set averageTestimonies (list 0.5 0.5 0.5 0.5)
+      set averageTestimonies array:from-list (list 0.5 0.5 0.5 0.5)
       let i random-float 1
-      set averageQuietingDelta (list i i i)
+      set averageQuietingDelta array:from-list (list i i i)
       set i random-float 1
-      set averageQuietingTendencies (list i i i)
-      set averageNonQuietingDelta (list 0 0 0)
+      set averageQuietingTendencies array:from-list (list i i i)
+      set averageNonQuietingDelta array:from-list (list 0 0 0)
       set averageQuietingUtility random 10
     ]
   ]
@@ -432,19 +437,21 @@ to-report quieten [aggressor victim input ]
 
 
     if employLearningFunction = TRUE [
-      ;updates the average severity of being quietened
-      set averageQuietingUtility (averageQuietingUtility * item 3 quietingCount + [utilityQuieting] of aggressor) / (item 3 quietingCount + 1)
 
-      set quietingCount replace-item 3 quietingCount (item 3 quietingCount + 1)
-      set quietingCount replace-item ([groupType] of aggressor) quietingCount (item ([groupType] of aggressor) quietingCount + 1)
+      ;updates the average severity of being quietened and counts this instance of quieting
+      set averageQuietingUtility (averageQuietingUtility * array:item quietingCount 3 + [utilityQuieting] of aggressor) / (array:item quietingCount 3 + 1)
+      array:set quietingCount 3 (array:item quietingCount 3 + 1)
+      array:set quietingCount ([groupType] of aggressor) (array:item quietingCount ([groupType] of aggressor) + 1)
 
       ;updates the aggressors information about the average credences of each group
       ask aggressor [
-        if learningCredencesType = "Update only on what one wants to hear"[;update with aggressor credence
-          set averageTestimonies replace-item ([groupType] of victim) averageTestimonies ((item ([groupType] of victim) averageTestimonies * item ([groupType] of victim) encounters + credence) / (item ([groupType] of victim) encounters + 1))
-          set encounters replace-item ([groupType] of victim) encounters (item ([groupType] of victim) encounters + 1) ;the aggressor counts the encounter
+        if learningCredencesType = "Update only on what one wants to hear"[
+          ;update with aggressor credence and count the encounter
+          array:set averageTestimonies ([groupType] of victim) ((array:item averageTestimonies [groupType] of victim) * array:item encounters ([groupType] of victim) + credence) / (array:item encounters ([groupType] of victim) + 1)
+          array:set encounters ([groupType] of victim) (array:item encounters ([groupType] of victim) + 1)
         ]
-        if learningCredencesType = "Update on the actual testimony"[;update with victim testimony
+        if learningCredencesType = "Update on the actual testimony"[
+          ;update with victim testimony
           updateKnowledgeOfCredences aggressor victim
         ]
       ]
@@ -466,13 +473,15 @@ to-report quieten [aggressor victim input ]
 
     if quietingType = "Ignore fully"[
       ask aggressor [
-        ;if this option is chosen, the count of relevant participants is reduced by one in round 3
+        ;if this option is chosen, the count of relevant participants is reduced by one in playGame, round 3
       ]
     ]
 
 
     set quietingCounter quietingCounter + 1
-    set quietingCounterTotals replace-item groupType quietingCounterTotals (item groupType quietingCounterTotals + 1) ;adds the quieting to the group type of the agent being quietened
+
+    ;adds the quieting to the group type of the victim
+    array:set quietingCounterTotals groupType (array:item quietingCounterTotals groupType + 1)
 
 
   ]
@@ -480,8 +489,8 @@ to-report quieten [aggressor victim input ]
 end
 
 to updateKnowledgeOfCredences [aggressor victim]
-  set averageTestimonies replace-item ([groupType] of victim) averageTestimonies ((item ([groupType] of victim) averageTestimonies * item ([groupType] of victim) encounters + [testimony] of victim) / (item ([groupType] of victim) encounters + 1))
-  set encounters replace-item ([groupType] of victim) encounters (item ([groupType] of victim) encounters + 1) ;the aggressor counts the encounter
+  array:set averageTestimonies ([groupType] of victim) ((array:item averageTestimonies ([groupType] of victim) * array:item encounters ([groupType] of victim) + [testimony] of victim) / (array:item encounters ([groupType] of victim) + 1))
+  array:set encounters ([groupType] of victim) (array:item encounters ([groupType] of victim) + 1);the aggressor counts the encounter
 end
 
 to smother [agent] ;give tailored testimony/ withold testimony
@@ -496,8 +505,8 @@ to smother [agent] ;give tailored testimony/ withold testimony
       set testimony "NA"
     ]
     set smotheringCounter smotheringCounter + 1
-    set smotheringCounterTotals replace-item groupType smotheringCounterTotals (item groupType smotheringCounterTotals + 1)
-  ]
+    array:set smotheringCounterTotals groupType (array:item smotheringCounterTotals groupType + 1)
+     ]
 end
 
 to-report calculateExpectedPatchConsensus [agent countParticipants]
@@ -512,40 +521,42 @@ to-report calculateExpectedPatchConsensus [agent countParticipants]
 
     if patchConsensusType = "Add own credence" [
       ifelse groupType = 0 [
-        set result (credence + ((item 0 countParticipants) - 1) * (item 0 data) + (item 1 countParticipants) * (item 1 data) + (item 2 countParticipants) * (item 2 data))
+        set result (credence + (array:item countParticipants 0 - 1) * array:item data 0 + (array:item countParticipants 1) * (array:item data 1) + array:item countParticipants 2 * array:item data 2)
+
       ][
         ifelse groupType = 1[
-          set result (credence + (item 0 countParticipants) * (item 0 data) + ((item 1 countParticipants) - 1) * (item 1 data) + (item 2 countParticipants) * (item 2 data))
+            set result (credence + (array:item countParticipants 0) * array:item data 0 + (array:item countParticipants 1 - 1) * (array:item data 1) + (array:item countParticipants 2 * array:item data 2))
+
         ][
-          set result (credence + (item 0 countParticipants) * (item 0 data) + (item 1 countParticipants) * (item 1 data) + ((item 2 countParticipants) - 1) * (item 2 data))
+              set result (credence + (array:item countParticipants 0) * array:item data 0 + (array:item countParticipants 1) * (array:item data 1) + (array:item countParticipants 2 - 1) * array:item data 2)
+
         ]
       ]
-      set result result / (item 3 countParticipants)
+      set result result / (array:item countParticipants 3)
     ]
 
     if patchConsensusType = "Omit own credence" [
       ifelse groupType = 0 [
-        set result (((item 0 countParticipants) - 1) * (item 0 data) + (item 1 countParticipants) * (item 1 data) + (item 2 countParticipants) * (item 2 data))
+
+
+        set result ((array:item countParticipants 0 - 1) * array:item data 0 + (array:item countParticipants 1) * (array:item data 1) + array:item countParticipants 2 * array:item data 2)
       ][
           ifelse groupType = 1[
-          set result ((item 0 countParticipants) * (item 0 data) + ((item 1 countParticipants) - 1) * (item 1 data) + (item 2 countParticipants) * (item 2 data))
+           set result ((array:item countParticipants 0 ) * array:item data 0 + (array:item countParticipants 1 - 1) * (array:item data 1) + array:item countParticipants 2 * array:item data 2)
         ][
-          set result ((item 0 countParticipants) * (item 0 data) + (item 1 countParticipants) * (item 1 data) + ((item 2 countParticipants) - 1) * (item 2 data))
+           set result ((array:item countParticipants 0 ) * array:item data 0 + (array:item countParticipants 1) * (array:item data 1) + ((array:item countParticipants 2 - 1)* array:item data 2))
         ]
       ]
-      set result result / ((item 3 countParticipants) - 1)
+      set result result / ((array:item countParticipants 3) - 1)
     ]
   ]
 
- ; print "groupType"
-  ;print groupType
-  ;print result
   report result
 end
 
 to-report calculatePatchConsensus [participants countParticipants]
   let result 0
-  let relevantParticipantCount item 3 countParticipants
+  let relevantParticipantCount array:item countParticipants 3
   ask participants [
     ifelse testimony = "NA"[
       set relevantParticipantCount relevantParticipantCount - 1
@@ -572,35 +583,33 @@ to-report calculateExpectedUtility [agent countParticipants] ;calculated in roun
     ]
 
     if groupType = 0[
-      if expectedDivergence > item 1 relevantThresholds ;and abs (credence - item 1 groupCredences) > quietenThresholdB
+      if expectedDivergence > array:item relevantThresholds 1
       [
-        set expectedUtility expectedUtility + (item 1 countParticipants) * relevantPenalty
+        set expectedUtility expectedUtility + (array:item countParticipants 1) * relevantPenalty
       ]
-      if expectedDivergence > item 2 relevantThresholds [
-        set expectedUtility expectedUtility + (item 2 countParticipants) * relevantPenalty
+      if expectedDivergence > array:item relevantThresholds 2  [
+        set expectedUtility expectedUtility + (array:item countParticipants 2) * relevantPenalty
       ]
     ]
 
     if groupType = 1[
-      if expectedDivergence > item 0 relevantThresholds [
-        set expectedUtility expectedUtility + (item 0 countParticipants) * relevantPenalty
+      if expectedDivergence > array:item relevantThresholds 0 [
+        set expectedUtility expectedUtility + (array:item countParticipants 0) * relevantPenalty
       ]
-      if expectedDivergence > item 2 relevantThresholds [
-        set expectedUtility expectedUtility + (item 2 countParticipants) * relevantPenalty
+      if expectedDivergence > array:item relevantThresholds 2 [
+        set expectedUtility expectedUtility + (array:item countParticipants 2) * relevantPenalty
       ]
     ]
 
     if groupType = 2[
-      if expectedDivergence > item 0 relevantThresholds [
-        set expectedUtility expectedUtility + (item 0 countParticipants) * relevantPenalty
+      if expectedDivergence > array:item relevantThresholds 0 [
+        set expectedUtility expectedUtility + (array:item countParticipants 0) * relevantPenalty
       ]
-      if expectedDivergence > item 1 relevantThresholds [
-        set expectedUtility expectedUtility + (item 1 countParticipants) * relevantPenalty
+      if expectedDivergence > array:item relevantThresholds 1 [
+        set expectedUtility expectedUtility + (array:item countParticipants 1) * relevantPenalty
       ]
     ]
   ]
-  ;print groupType
-  ;print expectedUtility
   report expectedUtility
 end
 
@@ -619,18 +628,18 @@ to updateAverageThresholds [quieten? aggressor victim patchConsensus]
     let divergenceVictimConsensus abs (testimony - patchConsensus)
 
     if calculateTendenciesType = "Adjust expectations"[
-      let expectedQuieting? ((item [groupType] of aggressor averageQuietingTendencies < delta) and (item [groupType] of aggressor averageQuietingTendencies < divergenceVictimConsensus))
+      let expectedQuieting? ((array:item averageQuietingTendencies ([groupType] of aggressor) < delta) and (array:item averageQuietingTendencies ([groupType] of aggressor) < divergenceVictimConsensus))
 
 
       if quieten? = TRUE and expectedQuieting? = FALSE [
 
-        set unexpectedQuietings replace-item ([groupType] of aggressor) unexpectedQuietings ((item [groupType] of aggressor unexpectedQuietings) + 1)
-
+        array:set unexpectedQuietings ([groupType] of aggressor) (array:item unexpectedQuietings [groupType] of aggressor + 1 )
       ]
 
       if quieten? = FALSE and expectedQuieting? = TRUE [
 
-        set unexpectedNonQuietings replace-item ([groupType] of aggressor) unexpectedNonQuietings ((item [groupType] of aggressor unexpectedNonQuietings) + 1)
+
+        array:set unexpectedNonQuietings ([groupType] of aggressor) (array:item unexpectedNonQuietings [groupType] of aggressor + 1 )
       ]
     ]
 
@@ -640,12 +649,13 @@ to updateAverageThresholds [quieten? aggressor victim patchConsensus]
 
     if calculateTendenciesType = "Split the means" [
       ifelse quieten? = true[
-        let violentEncounterCount (item ([groupType] of aggressor) quietingCount + 1)
-        set averageQuietingDelta replace-item ([groupType] of aggressor) averageQuietingDelta (((item ([groupType] of aggressor) averageQuietingDelta) * (violentEncounterCount - 1) + delta) / violentEncounterCount)
+        let violentEncounterCount (array:item quietingCount ([groupType] of aggressor) + 1)
+        array:set averageQuietingDelta ([groupType] of aggressor) ((array:item averageQuietingDelta ([groupType] of aggressor) * (violentEncounterCount - 1) + delta) / violentEncounterCount)
+
       ][
-        let nonViolentEncounterCount (item ([groupType] of aggressor) encounters + 1 - item ([groupType] of aggressor) quietingCount)
+        let nonViolentEncounterCount (array:item encounters ([groupType] of aggressor) + 1 - array:item quietingCount ([groupType] of aggressor))
         if nonViolentEncounterCount > 0 [
-          set averageNonQuietingDelta replace-item ([groupType] of aggressor) averageNonQuietingDelta (((item ([groupType] of aggressor) averageNonQuietingDelta) * (nonViolentEncountercount - 1) + delta) / nonViolentEncounterCount)
+          array:set averageNonQuietingDelta ([groupType] of aggressor) (((array:item averageNonQuietingDelta ([groupType] of aggressor)) * (nonViolentEncountercount - 1) + delta) / nonViolentEncounterCount)
         ]
       ]
     ]
@@ -808,9 +818,9 @@ false
 "" ""
 PENS
 "default" 1.0 0 -16777216 true "" "plot objectiveChanceP"
-"Group A" 1.0 0 -955883 true "" "plot item 0 groupCredences"
-"Group B" 1.0 0 -13345367 true "" "plot item 1 groupCredences"
-"Group C" 1.0 0 -6459832 true "" "plot item 2 groupCredences"
+"Group A" 1.0 0 -955883 true "" "plot array:item groupCredences 0"
+"Group B" 1.0 0 -13345367 true "" "plot array:item groupCredences 1"
+"Group C" 1.0 0 -6459832 true "" "plot array:item groupCredences 2"
 
 SWITCH
 1089
@@ -925,9 +935,9 @@ false
 "" ""
 PENS
 "default" 1.0 0 -16777216 true "" "plot objectiveChanceP"
-"Group A" 1.0 0 -955883 true "" "plot item 0 groupTestimonies"
-"Group B" 1.0 0 -13345367 true "" "plot item 1 groupTestimonies"
-"Group C" 1.0 0 -6459832 true "" "plot item 2 groupTestimonies"
+"Group A" 1.0 0 -955883 true "" "plot array:item groupTestimonies 0"
+"Group B" 1.0 0 -13345367 true "" "plot array:item groupTestimonies 1"
+"Group C" 1.0 0 -6459832 true "" "plot array:item groupTestimonies 2"
 
 TEXTBOX
 223
@@ -1129,10 +1139,10 @@ true
 false
 "" ""
 PENS
-"Total" 1.0 0 -16777216 true "" "plot item 3 quietingCounterTotals"
-"Group A" 1.0 0 -955883 true "" "plot item 0 quietingCounterTotals"
-"Group B" 1.0 0 -13345367 true "" "plot item 1 quietingCounterTotals"
-"Group C" 1.0 0 -6459832 true "" "plot item 2 quietingCounterTotals"
+"Total" 1.0 0 -16777216 true "" "plot array:item quietingCounterTotals 3"
+"Group A" 1.0 0 -955883 true "" "plot array:item quietingCounterTotals 0"
+"Group B" 1.0 0 -13345367 true "" "plot array:item quietingCounterTotals 1"
+"Group C" 1.0 0 -6459832 true "" "plot array:item quietingCounterTotals 2"
 
 PLOT
 1092
@@ -1150,10 +1160,10 @@ true
 false
 "" ""
 PENS
-"Total" 1.0 0 -16777216 true "" "plot item 3 smotheringCounterTotals"
-"Group A" 1.0 0 -955883 true "" "plot item 0 smotheringCounterTotals"
-"Group B" 1.0 0 -13345367 true "" "plot item 1 smotheringCounterTotals"
-"Group C" 1.0 0 -6459832 true "" "plot item 2 smotheringCounterTotals"
+"Total" 1.0 0 -16777216 true "" "plot array:item smotheringCounterTotals 3"
+"Group A" 1.0 0 -955883 true "" "plot array:item smotheringCounterTotals 0"
+"Group B" 1.0 0 -13345367 true "" "plot array:item smotheringCounterTotals 1"
+"Group C" 1.0 0 -6459832 true "" "plot array:item smotheringCounterTotals 2"
 
 SWITCH
 393
@@ -1238,9 +1248,9 @@ false
 "" ""
 PENS
 "default" 1.0 0 -16777216 true "" "plot averagePenalty"
-"group A" 1.0 0 -955883 true "" "plot item 0 credencesAboutPenalty"
-"group B" 1.0 0 -13345367 true "" "plot item 1 credencesAboutPenalty"
-"group C" 1.0 0 -6459832 true "" "plot item 2 credencesAboutPenalty"
+"group A" 1.0 0 -955883 true "" "plot array:item credencesAboutPenalty 0"
+"group B" 1.0 0 -13345367 true "" "plot array:item credencesAboutPenalty 1"
+"group C" 1.0 0 -6459832 true "" "plot array:item credencesAboutPenalty 2"
 
 TEXTBOX
 1668
@@ -1268,10 +1278,10 @@ true
 false
 "" ""
 PENS
-"Actual Value" 1.0 0 -16777216 true "" "plot item 0 groupCredences"
-"group A" 1.0 0 -955883 true "" "plot item 0 credencesAboutA"
-"group B" 1.0 0 -13345367 true "" "plot item 1 credencesAboutA"
-"group C" 1.0 0 -6459832 true "" "plot item 2 credencesAboutA"
+"Actual Value" 1.0 0 -16777216 true "" "plot array:item groupCredences 0"
+"group A" 1.0 0 -955883 true "" "plot array:item credencesAboutA 0"
+"group B" 1.0 0 -13345367 true "" "plot array:item credencesAboutA 1"
+"group C" 1.0 0 -6459832 true "" "plot array:item credencesAboutA 2"
 
 PLOT
 1815
@@ -1289,9 +1299,9 @@ true
 false
 "" ""
 PENS
-"Actual Value" 1.0 0 -16777216 true "" "plot item 0 averageThresholds"
-"group B" 1.0 0 -13345367 true "" "plot item 1 credencesAboutThresholdsA"
-"group C" 1.0 0 -6459832 true "" "plot item 2 credencesAboutThresholdsA"
+"Actual Value" 1.0 0 -16777216 true "" "plot array:item averageThresholds 0"
+"group B" 1.0 0 -13345367 true "" "plot array:item credencesAboutThresholdsA 1"
+"group C" 1.0 0 -6459832 true "" "plot array:item credencesAboutThresholdsA 2"
 
 PLOT
 1522
@@ -1309,10 +1319,10 @@ true
 false
 "" ""
 PENS
-"Actual Value" 1.0 0 -16777216 true "" "plot item 1 groupCredences"
-"group A" 1.0 0 -955883 true "" "plot item 0 credencesAboutB"
-"group B" 1.0 0 -13345367 true "" "plot item 1 credencesAboutB"
-"group C" 1.0 0 -6459832 true "" "plot item 2 credencesAboutB"
+"Actual Value" 1.0 0 -16777216 true "" "plot array:item groupCredences 1"
+"group A" 1.0 0 -955883 true "" "plot array:item credencesAboutB 0"
+"group B" 1.0 0 -13345367 true "" "plot array:item credencesAboutB 1"
+"group C" 1.0 0 -6459832 true "" "plot array:item credencesAboutB 2"
 
 PLOT
 1816
@@ -1330,9 +1340,9 @@ true
 false
 "" ""
 PENS
-"actual Value" 1.0 0 -16777216 true "" "plot item 1 averageThresholds"
-"group A" 1.0 0 -955883 true "" "plot item 0 credencesAboutThresholdsB"
-"group C" 1.0 0 -6459832 true "" "plot item 2 credencesAboutThresholdsB"
+"actual Value" 1.0 0 -16777216 true "" "plot array:item averageThresholds 1"
+"group A" 1.0 0 -955883 true "" "plot array:item credencesAboutThresholdsB 0"
+"group C" 1.0 0 -6459832 true "" "plot array:item credencesAboutThresholdsB 2"
 
 PLOT
 1522
@@ -1350,10 +1360,10 @@ true
 false
 "" ""
 PENS
-"Actual Value" 1.0 0 -16777216 true "" "plot item 2 groupCredences"
-"Group A" 1.0 0 -955883 true "" "plot item 0 credencesAboutC"
-"Group B" 1.0 0 -13345367 true "" "plot item 1 credencesAboutC"
-"Group C" 1.0 0 -6459832 true "" "plot item 2 credencesAboutC"
+"Actual Value" 1.0 0 -16777216 true "" "plot array:item groupCredences 2"
+"Group A" 1.0 0 -955883 true "" "plot array:item credencesAboutC 0"
+"Group B" 1.0 0 -13345367 true "" "plot array:item credencesAboutC 1"
+"Group C" 1.0 0 -6459832 true "" "plot array:item credencesAboutC 2"
 
 PLOT
 1817
@@ -1371,9 +1381,9 @@ true
 false
 "" ""
 PENS
-"Actual Value" 1.0 0 -16777216 true "" "plot item 2 averageThresholds"
-"Group A" 1.0 0 -955883 true "" "plot item 0 credencesAboutC"
-"Group B" 1.0 0 -13345367 true "" "plot item 1 credencesAboutC"
+"Actual Value" 1.0 0 -16777216 true "" "plot array:item averageThresholds 2"
+"Group A" 1.0 0 -955883 true "" "plot array:item credencesAboutC 0"
+"Group B" 1.0 0 -13345367 true "" "plot array:item credencesAboutC 1"
 
 SWITCH
 562
