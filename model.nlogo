@@ -72,7 +72,7 @@ to go ;called once per tick
   if experiment? = true [doExperiments]
   prepareGame
   if printUpdates? = TRUE [printUpdate]
-  if ticks >= 100 [stop] ;usually little of interest happens after that many ticks
+  if ticks >= 1000 [stop] ;usually little of interest happens after that many ticks
 end
 
 to playGame ;determines the agent-sets for the game and lets them play three rounds
@@ -333,7 +333,10 @@ to printSetup
 end
 
 to setupGroup [groupNumber]
-  create-people array:item groupCounts groupNumber[
+  let counter array:item groupCounts groupNumber
+  while [counter > 0] [
+    set counter counter - 1
+  create-people 1[
     ;-----------------------------------------------------------------------------------------------------
     ;basic features
     set xcor random-xcor
@@ -363,30 +366,34 @@ to setupGroup [groupNumber]
     set unexpectedQuietings array:from-list (list 0 0 0)
     set unexpectedNonQuietings array:from-list (list 0 0 0)
 
-    if initialValues = "All 0"[
+    if initialValues = "All 0"[ ;natural way to initialize, but will heavily skew the results 'downwards'
       set averageQuietingTendencies array:from-list (list 0 0 0)
       set averageTestimonies array:from-list (list 0 0 0 0)
       set averageQuietingDelta array:from-list (list 0 0 0)
       set averageNonQuietingDelta array:from-list (list 0 0 0)
       set averageQuietingUtility 0
     ]
-    if initialValues = "Custom" [
-      set averageQuietingTendencies array:from-list (list  0.5 0.5 0.5)
-      set averageTestimonies array:from-list (list 0.5 0.5 0.5 0.5)
-      set averageQuietingDelta array:from-list (list 0 0 0)
+    if initialValues = "Custom" [ ;these choices are explained in my essay
+      let i random-float 1
+      set averageQuietingTendencies array:from-list (list  i i i)
+      set i random-float 1
+      set averageTestimonies array:from-list (list i i i)
+      set averageQuietingDelta array:from-list (list 1 1 1)
       set averageNonQuietingDelta array:from-list (list 0 0 0)
-      set averageQuietingUtility 2
+      set averageQuietingUtility 0
     ]
-    if initialValues = "All random" [
+    if initialValues = "All random" [ ;a bit too random
       let i random-float 1
       set averageTestimonies array:from-list (list i i i i)
       set i random-float 1
       set averageQuietingDelta array:from-list (list i i i)
       set i random-float 1
       set averageQuietingTendencies array:from-list (list i i i)
-      set averageNonQuietingDelta array:from-list (list 0 0 0)
+      set i random-float 1
+      set averageNonQuietingDelta array:from-list (list i i i)
       set averageQuietingUtility random 10
     ]
+  ]
   ]
 end
 
@@ -1211,7 +1218,7 @@ CHOOSER
 initialValues
 initialValues
 "All 0" "All random" "Custom"
-1
+2
 
 SLIDER
 364
@@ -1294,7 +1301,7 @@ NIL
 1.0
 true
 false
-"set credencesAboutThresholdsA array:from-list (list 0 0 0)" ""
+"set averageThresholds array:from-list (list 0 0 0 0)\nset credencesAboutThresholdsA array:from-list (list 0 0 0)" ""
 PENS
 "Actual Value" 1.0 0 -16777216 true "" "plot array:item averageThresholds 0"
 "group B" 1.0 0 -13345367 true "" "plot array:item credencesAboutThresholdsA 1"
