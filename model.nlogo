@@ -1,4 +1,4 @@
-extensions [array] ;mutable and therefor faster than lists
+extensions [array] ;mutable and therefore faster than lists
 breed[people person] ;makes everything easier to read
 
 people-own[
@@ -377,7 +377,7 @@ to setupGroup [groupNumber]
     if initialValues = "Custom" [ ;these choices are explained in my essay
       let i random-float 1
       set averageQuietingTendencies array:from-list (list  i i i)
-      set i 0.5 ;random-float 1
+      set i 0.5 ;CHANGE THIS TO "set i random-float 1" FOR ALL PURPOSES EXCEPT CHECKING THE PAPER RESULTS @Rolf and Rush
       set averageTestimonies array:from-list (list i i i)
       set averageQuietingDelta array:from-list (list 1 1 1)
       set averageNonQuietingDelta array:from-list (list 0 0 0)
