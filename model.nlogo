@@ -72,7 +72,7 @@ to go ;called once per tick
   if experiment? = true [doExperiments]
   prepareGame
   if printUpdates? = TRUE [printUpdate]
-  if ticks >= 1000 [stop] ;usually little of interest happens after that many ticks
+  if ticks >= 300 [stop] ;usually little of interest happens after that many ticks
 end
 
 to playGame ;determines the agent-sets for the game and lets them play three rounds
@@ -347,11 +347,12 @@ to setupGroup [groupNumber]
     ;-----------------------------------------------------------------------------------------------------
     ;group specific features
     ifelse allowOutliers = TRUE [
-      set bias (random-float 4 * (array:item groupBiases groupNumber) - array:item groupBiases groupNumber) ;some people are outliers in their group!
+
+      set bias (random-float 2.2 * (array:item groupBiases groupNumber) - (0.1 * array:item groupBiases groupNumber)) ;some people are outliers in their group!
     ][
       set bias random-float 2 * (array:item groupBiases groupNumber)
     ]
-    set credence objectiveChanceP + bias
+    set credence objectiveChanceP + bias + (random-float 0.4 - 0.2)
     set quietenTendency random-float 2 * (array:item groupThresholds groupNumber) ; group tendency influences individual threshold
     set groupType groupNumber
     set color array:item groupColors groupNumber
@@ -376,11 +377,11 @@ to setupGroup [groupNumber]
     if initialValues = "Custom" [ ;these choices are explained in my essay
       let i random-float 1
       set averageQuietingTendencies array:from-list (list  i i i)
-      set i random-float 1
+      set i 0.5 ;random-float 1
       set averageTestimonies array:from-list (list i i i)
       set averageQuietingDelta array:from-list (list 1 1 1)
       set averageNonQuietingDelta array:from-list (list 0 0 0)
-      set averageQuietingUtility 0
+      set averageQuietingUtility 2
     ]
     if initialValues = "All random" [ ;a bit too random
       let i random-float 1
@@ -525,6 +526,7 @@ to-report calculateExpectedPatchConsensus [agent countParticipants]
 
     if patchConsensusType = "Add own credence" [
       ifelse groupType = 0 [
+
         set result (credence + (array:item countParticipants 0 - 1) * array:item data 0 + (array:item countParticipants 1) * (array:item data 1) + array:item countParticipants 2 * array:item data 2)
 
       ][
@@ -790,7 +792,7 @@ NIL
 PLOT
 466
 10
-757
+792
 130
 Overall mean distance from the truth
 NIL
@@ -925,7 +927,7 @@ HORIZONTAL
 PLOT
 795
 135
-1088
+1125
 469
 Mean testimonies
 NIL
@@ -1128,9 +1130,9 @@ Communication Settings
 1
 
 PLOT
-1092
+1128
 56
-1520
+1499
 262
 Quieting of groups
 NIL
@@ -1149,9 +1151,9 @@ PENS
 "Group C" 1.0 0 -6459832 true "" "plot array:item quietingCounterTotals 2"
 
 PLOT
-1092
+1128
 264
-1520
+1499
 469
 Smotherings of groups
 NIL
@@ -1236,10 +1238,10 @@ NIL
 HORIZONTAL
 
 PLOT
-1526
-47
-2096
-370
+1504
+56
+2074
+379
 Credences About the Penalty
 NIL
 NIL
@@ -1257,20 +1259,20 @@ PENS
 "group C" 1.0 0 -6459832 true "" "plot array:item credencesAboutPenalty 2"
 
 TEXTBOX
-1668
-10
-1929
-58
+1671
+18
+1932
+66
 Learning Function Plots
 20
 0.0
 1
 
 PLOT
-1523
-376
-1812
-526
+1504
+383
+1793
+533
 Credences about Credences of A
 NIL
 NIL
@@ -1288,10 +1290,10 @@ PENS
 "group C" 1.0 0 -6459832 true "" "plot array:item credencesAboutA 2"
 
 PLOT
-1815
-375
-2100
-525
+1796
+382
+2074
+532
 Credences about Thresholds of A
 NIL
 NIL
@@ -1308,10 +1310,10 @@ PENS
 "group C" 1.0 0 -6459832 true "" "plot array:item credencesAboutThresholdsA 2"
 
 PLOT
-1522
-532
-1813
-682
+1503
+539
+1794
+689
 Credences about Credences of B
 NIL
 NIL
@@ -1329,10 +1331,10 @@ PENS
 "group C" 1.0 0 -6459832 true "" "plot array:item credencesAboutB 2"
 
 PLOT
-1816
-532
-2101
-682
+1797
+539
+2075
+689
 Credences about Thresholds of B
 NIL
 NIL
@@ -1349,10 +1351,10 @@ PENS
 "group C" 1.0 0 -6459832 true "" "plot array:item credencesAboutThresholdsB 2"
 
 PLOT
-1522
-686
-1814
-836
+1503
+693
+1795
+843
 Credences about Credences of C
 NIL
 NIL
@@ -1370,10 +1372,10 @@ PENS
 "Group C" 1.0 0 -6459832 true "" "plot array:item credencesAboutC 2"
 
 PLOT
-1817
-687
-2101
-837
+1798
+694
+2075
+844
 Credences about Thresholds of C
 NIL
 NIL
@@ -1408,7 +1410,7 @@ CHOOSER
 calculateTendenciesType
 calculateTendenciesType
 "Split the means" "Adjust expectations" "Know objective values"
-2
+1
 
 SLIDER
 735
@@ -1433,7 +1435,7 @@ CHOOSER
 biasType
 biasType
 "None" "Perpetual" "Resolving"
-2
+1
 
 SWITCH
 737
