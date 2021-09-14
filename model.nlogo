@@ -1,28 +1,28 @@
-extensions [array]
-breed[people person]
+extensions [array] ;mutable and therefor faster than lists
+breed[people person] ;makes everything easier to read
 
 people-own[
   groupType ;which group does the agent belong to?
   credence ;what is the agents credence in the proposition?
   bias ;how biased is this particular agent?
   quietenTendency ;how quick is the agent to quieten those of diverging identity? (threshold value)
-  utilityQuieting ;how bad an instance of quieting committed by this agent is for the victim
-  utilitySmothering ;how bad an instance of smothering is for this agent themself
+  utilityQuieting ;how bad is an instance of quieting committed by this agent for the victim?
+  utilitySmothering ;how bad is an instance of smothering for this agent themself?
   expectedPatchConsensus ;calculated in round 1 of each game, based on who else is present on the patch
   expectedDivergence ;calculated in round 1 of each game, based on the expectedPatchConsensus
-  testimony ;is given in round two, based on expectedUtility and credence
+  testimony ;is given in round two, based on expectedUtility and credence - visible to other agents
   ;-------------------------------------------------------------------------------------------------------------------
   ;learning function
   averageTestimonies ;the average testimony given by members of this group to the agent
   encounters  ;the number of testimonies from these groups
-  averageQuietingDelta
-  averageNonQuietingDelta
+  averageQuietingDelta ;used for split-the-means estimation of quieting thresholds
+  averageNonQuietingDelta ;used for split-the-means estimation of quieting thresholds
   averageQuietingTendencies ;how big - on average - was this agents divergence from that groups testimony when they were quietened
   quietingCount ;how often - per group - has this agent been quietened?
   averageQuietingUtility ;how bad - on average - were the quieting instances this agent experienced
-  quietingExperiences
-  unexpectedQuietings
-  unexpectedNonQuietings
+  quietingExperiences ;used for adjust-expectations estimations of quieting thresholds
+  unexpectedQuietings ;used for adjust-expectations estimations of quieting thresholds
+  unexpectedNonQuietings ;used for adjust-expectations estimations of quieting thresholds
 ]
 
 globals[
@@ -46,15 +46,15 @@ globals[
   quietingCounterTotals ;how often did agents quieten others in total so far? (list)
   ;------------------------------------------------------------------------------------------------------------------
   ;Values for plotting the learning functions
-  credencesAboutA
-  credencesAboutThresholdsA
+  credencesAboutA ;what do agents of the different groups believe about the mean credence of group A?
+  credencesAboutThresholdsA ;what do agents of the different groups believe about the mean quietingThreshold of group A?
   credencesAboutB
   credencesAboutThresholdsB
   credencesAboutC
   credencesAboutThresholdsC
-  credencesAboutPenalty
-  averagePenalty
-  averageThresholds
+  credencesAboutPenalty ;what do agents of the different groups believe about the penalty for being quietened?
+  averagePenalty ;what, actually, is the mean penalty for being quietened?
+  averageThresholds ;What's the mean threshold for quieting for each group?
 ]
 
 to setup ;called at the start of each simulation
@@ -72,7 +72,7 @@ to go ;called once per tick
   if experiment? = true [doExperiments]
   prepareGame
   if printUpdates? = TRUE [printUpdate]
-  if ticks >= 1000 [stop] ;usually little of interest happens after that many ticks
+  if ticks >= 100 [stop] ;usually little of interest happens after that many ticks
 end
 
 to playGame ;determines the agent-sets for the game and lets them play three rounds
@@ -103,7 +103,7 @@ to playGame ;determines the agent-sets for the game and lets them play three rou
       let patchConsensus calculatePatchConsensus participants countParticipants
 
       ask participants [
-        let relevantParticipantCount ((array:item countParticipants 3) - 1)
+        let relevantParticipantCount ((array:item countParticipants 3) - 1); count only other participants
         let inputFromThisGame 0
 
         ask other participants[
@@ -378,8 +378,9 @@ to setupGroup [groupNumber]
       set averageQuietingUtility 2
     ]
     if initialValues = "All random" [
-      set averageTestimonies array:from-list (list 0.5 0.5 0.5 0.5)
       let i random-float 1
+      set averageTestimonies array:from-list (list i i i i)
+      set i random-float 1
       set averageQuietingDelta array:from-list (list i i i)
       set i random-float 1
       set averageQuietingTendencies array:from-list (list i i i)
@@ -407,11 +408,7 @@ to-report shouldQuieten? [aggressor victim patchConsensus]
       set divergenceVictimConsensus abs (testimony - patchConsensus)
       set divergenceVictimAggressor abs (testimony - [credence] of myself)
       set relevantThreshold [quietenTendency] of myself
-
-
     ]
-
-
   ]
 
   let condition true
@@ -815,7 +812,7 @@ NIL
 1.0
 true
 false
-"" ""
+"set groupCredences array:from-list (list 0 0 0)" ""
 PENS
 "default" 1.0 0 -16777216 true "" "plot objectiveChanceP"
 "Group A" 1.0 0 -955883 true "" "plot array:item groupCredences 0"
@@ -932,7 +929,7 @@ NIL
 1.0
 true
 false
-"" ""
+"set groupTestimonies array:from-list (list 0 0 0)" ""
 PENS
 "default" 1.0 0 -16777216 true "" "plot objectiveChanceP"
 "Group A" 1.0 0 -955883 true "" "plot array:item groupTestimonies 0"
@@ -1137,7 +1134,7 @@ NIL
 10.0
 true
 false
-"" ""
+"set quietingCounterTotals array:from-list (list 0 0 0 0)" ""
 PENS
 "Total" 1.0 0 -16777216 true "" "plot array:item quietingCounterTotals 3"
 "Group A" 1.0 0 -955883 true "" "plot array:item quietingCounterTotals 0"
@@ -1158,7 +1155,7 @@ NIL
 10.0
 true
 false
-"" ""
+"set smotheringCounterTotals array:from-list (list 0 0 0 0)" ""
 PENS
 "Total" 1.0 0 -16777216 true "" "plot array:item smotheringCounterTotals 3"
 "Group A" 1.0 0 -955883 true "" "plot array:item smotheringCounterTotals 0"
@@ -1214,7 +1211,7 @@ CHOOSER
 initialValues
 initialValues
 "All 0" "All random" "Custom"
-2
+1
 
 SLIDER
 364
@@ -1245,7 +1242,7 @@ NIL
 10.0
 true
 false
-"" ""
+"set credencesAboutPenalty array:from-list (list 0 0 0)" ""
 PENS
 "default" 1.0 0 -16777216 true "" "plot averagePenalty"
 "group A" 1.0 0 -955883 true "" "plot array:item credencesAboutPenalty 0"
@@ -1276,7 +1273,7 @@ NIL
 1.0
 true
 false
-"" ""
+"set credencesAboutA array:from-list (list 0 0 0)" ""
 PENS
 "Actual Value" 1.0 0 -16777216 true "" "plot array:item groupCredences 0"
 "group A" 1.0 0 -955883 true "" "plot array:item credencesAboutA 0"
@@ -1297,7 +1294,7 @@ NIL
 1.0
 true
 false
-"" ""
+"set credencesAboutThresholdsA array:from-list (list 0 0 0)" ""
 PENS
 "Actual Value" 1.0 0 -16777216 true "" "plot array:item averageThresholds 0"
 "group B" 1.0 0 -13345367 true "" "plot array:item credencesAboutThresholdsA 1"
@@ -1317,7 +1314,7 @@ NIL
 1.0
 true
 false
-"" ""
+"set credencesAboutB array:from-list (list 0 0 0)" ""
 PENS
 "Actual Value" 1.0 0 -16777216 true "" "plot array:item groupCredences 1"
 "group A" 1.0 0 -955883 true "" "plot array:item credencesAboutB 0"
@@ -1338,7 +1335,7 @@ NIL
 1.0
 true
 false
-"" ""
+"set credencesAboutThresholdsB array:from-list (list 0 0 0)" ""
 PENS
 "actual Value" 1.0 0 -16777216 true "" "plot array:item averageThresholds 1"
 "group A" 1.0 0 -955883 true "" "plot array:item credencesAboutThresholdsB 0"
@@ -1358,7 +1355,7 @@ NIL
 1.0
 true
 false
-"" ""
+"set credencesAboutC array:from-list (list 0 0 0)" ""
 PENS
 "Actual Value" 1.0 0 -16777216 true "" "plot array:item groupCredences 2"
 "Group A" 1.0 0 -955883 true "" "plot array:item credencesAboutC 0"
@@ -1379,7 +1376,7 @@ NIL
 10.0
 true
 false
-"" ""
+"set credencesAboutThresholdsC array:from-list (list 0 0 0)" ""
 PENS
 "Actual Value" 1.0 0 -16777216 true "" "plot array:item averageThresholds 2"
 "Group A" 1.0 0 -955883 true "" "plot array:item credencesAboutC 0"
