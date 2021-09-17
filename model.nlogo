@@ -72,7 +72,7 @@ to go ;called once per tick
   if experiment? = true [doExperiments]
   prepareGame
   if printUpdates? = TRUE [printUpdate]
-  if ticks >= 300 [stop] ;usually little of interest happens after that many ticks
+  if ticks >= 1000 [stop] ;usually little of interest happens after that many ticks
 end
 
 to playGame ;determines the agent-sets for the game and lets them play three rounds
@@ -177,7 +177,7 @@ to setupAgents
   set groupColors array:from-list (list orange blue brown)
   set groupBiases array:from-list (list biasTypeA biasTypeB biasTypeC)
   set groupCounts array:from-list (list countTypeA countTypeB countTypeC)
-  set countPeople array:item groupCounts 0 + array:item groupCounts 2 + array:item groupCounts 2
+  set countPeople array:item groupCounts 0 + array:item groupCounts 1 + array:item groupCounts 2
   set groupPercentages array:from-list (list ((countTypeA / countPeople) * 100) ((countTypeB / countPeople) * 100) ((countTypeC / countPeople) * 100))
   set groupThresholds array:from-list (list quietenThresholdA quietenThresholdB quietenThresholdC)
 
