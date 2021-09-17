@@ -381,7 +381,7 @@ to setupGroup [groupNumber]
       set averageTestimonies array:from-list (list i i i)
       set averageQuietingDelta array:from-list (list 1 1 1)
       set averageNonQuietingDelta array:from-list (list 0 0 0)
-      set averageQuietingUtility 2
+      set averageQuietingUtility 0 ;naive agents
     ]
     if initialValues = "All random" [ ;a bit too random
       let i random-float 1
